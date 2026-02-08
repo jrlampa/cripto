@@ -10,6 +10,10 @@ export class WalletService {
   private sessions: number = 0;
   private lifetimeMined: number = 0;
   private lifetimeCost: number = 0;
+  private lifetimeXMR: number = 0;
+  private baselineMined: number = 0;
+  private baselineCost: number = 0;
+  private baselineXMR: number = 0;
   private readonly walletFile = path.join(process.cwd(), 'wallet.json');
 
   constructor() {
@@ -25,13 +29,43 @@ export class WalletService {
         this.sessions = data.sessions || 0;
         this.lifetimeMined = data.lifetimeMined || 0;
         this.lifetimeCost = data.lifetimeCost || 0;
-        return;
+        this.lifetimeXMR = data.lifetimeXMR || 0;
+        this.baselineMined = this.lifetimeMined;
+        this.baselineCost = this.lifetimeCost;
+        this.baselineXMR = this.lifetimeXMR;
       } catch (e) {
-        console.error("⚠️ Erro ao ler arquivo da carteira. Gerando uma nova.");
+        console.error("⚠️ Erro ao ler arquivo da carteira.");
       }
     }
-    this.generateMockWallet();
-    this.saveWallet();
+
+    // Prioridade: Importar dados reais se os arquivos estiverem presentes
+    const cakeFile = path.join(process.cwd(), 'carteira_cake.html');
+    const wordsFile = path.join(process.cwd(), 'words.html');
+
+    let updated = false;
+
+    if (fs.existsSync(cakeFile)) {
+      const html = fs.readFileSync(cakeFile, 'utf8');
+      const addressMatch = html.match(/4[a-zA-Z0-9]{94}/);
+      if (addressMatch && this.walletAddress !== addressMatch[0]) {
+        this.walletAddress = addressMatch[0];
+        updated = true;
+      }
+    }
+
+    if (fs.existsSync(wordsFile)) {
+      const html = fs.readFileSync(wordsFile, 'utf8');
+      const wordsMatch = html.match(/<body>(.*?)<\/body>/);
+      if (wordsMatch && wordsMatch[1] && this.mnemonic !== wordsMatch[1]) {
+        this.mnemonic = wordsMatch[1];
+        updated = true;
+      }
+    }
+
+    if (updated || !this.walletAddress) {
+      if (!this.walletAddress) this.generateMockWallet();
+      this.saveWallet();
+    }
   }
 
   private saveWallet(): void {
@@ -41,6 +75,7 @@ export class WalletService {
       sessions: this.sessions,
       lifetimeMined: this.lifetimeMined,
       lifetimeCost: this.lifetimeCost,
+      lifetimeXMR: this.lifetimeXMR,
       lastUpdated: new Date().toISOString()
     };
     fs.writeFileSync(this.walletFile, JSON.stringify(data, null, 2));
@@ -61,7 +96,11 @@ export class WalletService {
       mnemonic: this.mnemonic,
       sessions: this.sessions,
       lifetimeMined: this.lifetimeMined,
-      lifetimeCost: this.lifetimeCost
+      lifetimeCost: this.lifetimeCost,
+      lifetimeXMR: this.lifetimeXMR,
+      initialMined: this.baselineMined,
+      initialCost: this.baselineCost,
+      initialXMR: this.baselineXMR
     };
   }
 
@@ -70,9 +109,12 @@ export class WalletService {
     this.saveWallet();
   }
 
-  public updateLifetimeStats(mined: number, cost: number): void {
-    this.lifetimeMined += mined;
-    this.lifetimeCost += cost;
+  public updateLifetimeStats(sessionMined: number, sessionCost: number, sessionXMR?: number): void {
+    this.lifetimeMined = this.baselineMined + sessionMined;
+    this.lifetimeCost = this.baselineCost + sessionCost;
+    if (sessionXMR !== undefined) {
+      this.lifetimeXMR = this.baselineXMR + sessionXMR;
+    }
     this.saveWallet();
   }
 

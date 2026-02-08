@@ -46,6 +46,10 @@ async function initGPU() {
 
 let progress = 0;
 
+// Redireciona logs para o TUI para manter a tela limpa
+const originalLog = console.log;
+console.log = (...args) => tui.log(args.join(' '));
+
 // Configura o dashboard fixo
 setInterval(() => {
   const now = Date.now();
@@ -87,8 +91,11 @@ setInterval(() => {
     energyCost: finance.cost,
     minedValue: finance.revenue,
     sessions: wallet.getWalletInfo().sessions,
-    totalMined: wallet.getWalletInfo().lifetimeMined,
-    totalCost: wallet.getWalletInfo().lifetimeCost
+    totalMined: wallet.getWalletInfo().initialMined,
+    totalCost: wallet.getWalletInfo().initialCost,
+    xmr: finance.xmr,
+    initialXMR: wallet.getWalletInfo().initialXMR,
+    minPayout: finance.minPayout
   });
 
   // Simulação de progresso do job
@@ -96,6 +103,12 @@ setInterval(() => {
   if (progress > 100) progress = 0;
   tui.updateProgress(progress);
 }, 1000);
+
+// Salvamento periódico (Auto-save) a cada 30 segundos
+setInterval(() => {
+  const finance = profitService.getFinanceReport();
+  wallet.updateLifetimeStats(finance.revenue, finance.cost, finance.xmr);
+}, 30000);
 
 // Inicia a mineração
 wallet.incrementSession(); // Incrementa contador de sessões
@@ -107,9 +120,17 @@ setInterval(updateFinance, 5 * 60 * 1000);
 tui.log(`Conectado à pool ${POOL_HOST}`);
 tui.log(`Carteira carregada: ${walletInfo.address.substring(0, 8)}... | Sessão #${wallet.getWalletInfo().sessions}`);
 
-process.on('SIGINT', () => {
-  tui.log("🛑 Encerrando minerador...");
+function handleExit() {
+  originalLog("\n🛑 Encerrando minerador e salvando progresso...");
   const finance = profitService.getFinanceReport();
-  wallet.updateLifetimeStats(finance.revenue, finance.cost); // Salva o progresso da sessão
-  setTimeout(() => process.exit(), 500);
-});
+  wallet.updateLifetimeStats(finance.revenue, finance.cost, finance.xmr);
+
+  // Pequena espera para garantir o flush do arquivo
+  setTimeout(() => {
+    originalLog("✅ Progresso salvo com sucesso. Até logo!");
+    process.exit(0);
+  }, 800);
+}
+
+tui.on('exit', handleExit);
+process.on('SIGINT', handleExit);

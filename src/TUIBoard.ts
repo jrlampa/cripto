@@ -1,7 +1,8 @@
 import * as blessed from 'blessed';
 import * as os from 'os';
+import { EventEmitter } from 'events';
 
-export class TUIBoard {
+export class TUIBoard extends EventEmitter {
   private screen: any;
   private logBox: any;
   private statsBox: any;
@@ -11,6 +12,7 @@ export class TUIBoard {
   private progressBox: any;
 
   constructor() {
+    super();
     this.screen = blessed.screen({
       smartCSR: true,
       title: 'Antigravity Monero Miner v3'
@@ -119,8 +121,7 @@ export class TUIBoard {
     });
 
     this.screen.key(['escape', 'q', 'C-c'], () => {
-      this.screen.destroy();
-      process.exit(0);
+      this.emit('exit');
     });
 
     this.render();
@@ -147,6 +148,7 @@ export class TUIBoard {
     const s = uptime % 60;
     const uptimeStr = `${h}h ${m}m ${s}s`;
 
+    this.statsBox.content = ''; // Clear before setting
     this.statsBox.setContent(
       `Estado: {bold}${info.state}{/bold}\n` +
       `Threads: {bold}${info.threads}{/bold}\n` +
@@ -192,7 +194,10 @@ export class TUIBoard {
     minedValue?: number,
     sessions?: number,
     totalMined?: number,
-    totalCost?: number
+    totalCost?: number,
+    xmr?: number,
+    initialXMR?: number,
+    minPayout?: number
   }): void {
     const sessionProfit = (info.minedValue || 0) - (info.energyCost || 0);
     const profitColor = sessionProfit >= 0 ? '{green-fg}' : '{red-fg}';
@@ -202,9 +207,16 @@ export class TUIBoard {
     const lifetimeProfit = lifetimeMined - lifetimeCost;
     const lifetimeColor = lifetimeProfit >= 0 ? '{green-fg}' : '{red-fg}';
 
+    const lifetimeXMR = (info.initialXMR || 0) + (info.xmr || 0);
+    const payoutMeta = info.minPayout || 0.1;
+    const progress = (lifetimeXMR / payoutMeta) * 100;
+    const progressColor = progress >= 100 ? '{green-fg}' : '{yellow-fg}';
+
+    this.walletBox.content = ''; // Clear artifacts
     this.walletBox.setContent(
       `Endereço: {cyan-fg}${info.address}{/cyan-fg} | Sessões: {bold}${info.sessions || 1}{/bold}\n` +
-      `Cotação:  {bold}R$ ${info.brl.toLocaleString()}{/bold} | {bold}$${info.usd.toLocaleString()}{/bold}\n` +
+      `XMR Total: {bold}${lifetimeXMR.toFixed(8)} XMR{/bold} | Meta: {bold}${payoutMeta} XMR{/bold} (R$ ${(payoutMeta * info.brl).toFixed(2)})\n` +
+      `Progresso Payout: ${progressColor}[${'█'.repeat(Math.floor(progress / 5))}${'░'.repeat(20 - Math.floor(progress / 5))}] ${progress.toFixed(2)}%{/}\n` +
       `Sessão:   {red-fg}Luz R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg} | Saldo: ${profitColor}R$ ${sessionProfit.toFixed(4)}{/}\n` +
       `Total:    {red-fg}Luz R$ ${lifetimeCost.toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${lifetimeMined.toFixed(4)}{/green-fg} | Saldo: ${lifetimeColor}{bold}R$ ${lifetimeProfit.toFixed(4)}{/bold}{/}`
     );
