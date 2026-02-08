@@ -34,7 +34,7 @@ export class TUIBoard extends EventEmitter {
       left: 0,
       width: '100%',
       height: 3,
-      content: ' {bold}ANTIGRAVITY SMART MINER v3.0{/bold} | Monero (Real RandomX) ',
+      content: ' {bold}ANTIGRAVITY SMART MINER v3.0{/bold} | Monero (RandomX WASM) ',
       style: {
         bg: 'blue',
         fg: 'white'
@@ -194,7 +194,7 @@ export class TUIBoard extends EventEmitter {
       `Threads: {bold}${info.threads}{/bold} (Use +/- para ajustar)\n` +
       `Conexão: ${info.poolConnected ? '{green-fg}Conectado{/green-fg}' : '{red-fg}Desconectado{/red-fg}'}\n` +
       `Pool: {cyan-fg}${info.pool}{/cyan-fg}\n\n` +
-      `Hashrate CPU: {yellow-fg}${info.hashrate?.toFixed(2) || '0.00'}{/yellow-fg} H/s\n` +
+      `Hashrate CPU (RandomX): {yellow-fg}${info.hashrate?.toFixed(2) || '0.00'}{/yellow-fg} H/s\n` +
       `Shares: {yellow-fg}${info.shares || 0}{/yellow-fg}\n` +
       `Diff:   {blue-fg}${info.difficulty || 'N/A'}{/blue-fg}\n` +
       `Uptime: {bold}${uptimeStr}{/bold}`
@@ -216,7 +216,7 @@ export class TUIBoard extends EventEmitter {
     const barWidth = 20;
     const filled = Math.round((data.load / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
-    const simLabel = data.isSimulated ? ' {yellow-fg}(Simulado){/yellow-fg}' : '';
+    const simLabel = data.isSimulated ? ' {red-fg}(EMULADA - SEM NATIVO){/red-fg}' : '';
 
     this.gpuBox.setContent(
       `Modelo: {bold}${data.model}${simLabel}{/bold}\n` +

@@ -1,4 +1,4 @@
-export class GPUMiningEngine {
+export class GPUSimulator {
   private isActive: boolean = false;
   private hashrate: number = 0;
 
