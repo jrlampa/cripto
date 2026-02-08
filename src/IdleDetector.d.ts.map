@@ -1,0 +1,1 @@
+{"version":3,"file":"IdleDetector.d.ts","sourceRoot":"","sources":["IdleDetector.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,YAAY,EAAE,MAAM,QAAQ,CAAC;AAEtC,qBAAa,YAAa,SAAQ,YAAY;IAC5C,OAAO,CAAC,MAAM,CAAkB;IAChC,OAAO,CAAC,aAAa,CAA+B;IACpD,OAAO,CAAC,QAAQ,CAAC,iBAAiB,CAAS;;IAMpC,KAAK,IAAI,IAAI;IAKb,IAAI,IAAI,IAAI;IAInB,OAAO,CAAC,aAAa;CAsCtB"}
