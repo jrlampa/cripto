@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import { EventEmitter } from 'events';
 
 export class IdleDetector extends EventEmitter {
-  private isIdle: boolean = false;
+  public isIdle: boolean = false;
   private checkInterval: NodeJS.Timeout | null = null;
   private readonly IDLE_THRESHOLD_MS = 60000; // 1 minuto de ócio
 
@@ -13,6 +13,10 @@ export class IdleDetector extends EventEmitter {
   public start(): void {
     console.log("🔍 Monitor de ócio iniciado...");
     this.checkInterval = setInterval(() => this.checkIdleTime(), 5000);
+  }
+
+  public isIdleState(): boolean {
+    return this.isIdle;
   }
 
   public stop(): void {

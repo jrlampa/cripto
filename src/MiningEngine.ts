@@ -26,6 +26,14 @@ export class MiningEngine {
     });
   }
 
+  public isIdle(): boolean {
+    return this.idleDetector.isIdle;
+  }
+
+  public getActiveWorkersCount(): number {
+    return this.workers.length;
+  }
+
   public start(): void {
     console.log(`🚀 Iniciando Engine Monero com ${this.numCores} núcleos.`);
     this.idleDetector.start();

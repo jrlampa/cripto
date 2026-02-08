@@ -1,22 +1,48 @@
 import axios from 'axios';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class WalletService {
   private lastPrice: number = 0;
   private walletAddress: string = '';
   private mnemonic: string = '';
+  private readonly walletFile = path.join(process.cwd(), 'wallet.json');
 
   constructor() {
+    this.initialization();
+  }
+
+  private initialization(): void {
+    if (fs.existsSync(this.walletFile)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(this.walletFile, 'utf8'));
+        this.walletAddress = data.address;
+        this.mnemonic = data.mnemonic;
+        return;
+      } catch (e) {
+        console.error("⚠️ Erro ao ler arquivo da carteira. Gerando uma nova.");
+      }
+    }
     this.generateMockWallet();
+    this.saveWallet();
+  }
+
+  private saveWallet(): void {
+    const data = {
+      address: this.walletAddress,
+      mnemonic: this.mnemonic,
+      createdAt: new Date().toISOString()
+    };
+    fs.writeFileSync(this.walletFile, JSON.stringify(data, null, 2));
   }
 
   /**
    * Simula a geração de uma carteira Monero (XMR)
-   * Nota: Em produção, o usuário deve usar o GUI oficial ou ferramentas como monero-js.
    */
   private generateMockWallet(): void {
     const randomHex = crypto.randomBytes(32).toString('hex');
-    this.walletAddress = `4${randomHex.substring(0, 94)}`; // Monero addresses start with '4' and are 95 chars
+    this.walletAddress = `4${randomHex.substring(0, 94)}`;
     this.mnemonic = "seed-frase-simulada-para-festa-exemplo-minerador-antigravity";
   }
 

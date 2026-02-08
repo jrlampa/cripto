@@ -8,18 +8,21 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "manage": "powershell ./bin/manage.ps1",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/blessed": "^0.1.27",
     "@types/node": "^25.2.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
-    "axios": "^1.13.4"
+    "axios": "^1.13.4",
+    "blessed": "^0.1.81"
   }
 }
