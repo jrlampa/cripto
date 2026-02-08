@@ -3,6 +3,7 @@ import { WalletService } from './WalletService';
 import { TUIBoard } from './TUIBoard';
 import { GPUDetector } from './GPUDetector';
 import { GPUMiningEngine } from './GPUMiningEngine';
+import { ProfitabilityService } from './ProfitabilityService';
 
 const tui = new TUIBoard();
 tui.log("Iniciando minerador inteligente...");
@@ -15,14 +16,21 @@ const walletInfo = wallet.getWalletInfo();
 const engine = new MiningEngine(POOL_HOST, POOL_PORT, walletInfo.address);
 const gpuDetector = new GPUDetector();
 const gpuEngine = new GPUMiningEngine();
+const profitService = new ProfitabilityService();
 
 let gpuModel = "Buscando...";
+let lastPrice = { brl: 0, usd: 0 };
+let lastUpdateTime = Date.now();
 
 tui.updateWallet({ address: walletInfo.address, brl: 0, usd: 0 });
 
 async function updateFinance() {
-  const price = await wallet.fetchPrice();
-  tui.updateWallet({ address: walletInfo.address, brl: price.brl, usd: price.usd });
+  lastPrice = await wallet.fetchPrice();
+  tui.updateWallet({
+    address: walletInfo.address,
+    brl: lastPrice.brl,
+    usd: lastPrice.usd
+  });
 }
 
 async function initGPU() {
@@ -40,17 +48,26 @@ let progress = 0;
 
 // Configura o dashboard fixo
 setInterval(() => {
+  const now = Date.now();
+  const deltaMs = now - lastUpdateTime;
+  lastUpdateTime = now;
+
   const isIdle = engine.isIdle();
   const cpuLoad = Math.floor(Math.random() * 5) + (engine.getActiveWorkersCount() > 1 ? 95 : 10);
   const engineStats = engine.getStats();
 
   gpuEngine.setPower(isIdle);
   const gpuStatus = gpuEngine.getStatus();
+  const currentGpuLoad = gpuEngine.getSimulatedLoad();
+
+  // Atualiza Financeiro Real-time
+  profitService.update(cpuLoad, currentGpuLoad, engineStats.job ? cpuLoad + gpuStatus.hashrate : 0, lastPrice.brl, deltaMs);
+  const finance = profitService.getFinanceReport();
 
   tui.updateCPU(cpuLoad);
   tui.updateGPU({
     model: gpuModel,
-    load: gpuEngine.getSimulatedLoad(),
+    load: currentGpuLoad,
     hashrate: gpuStatus.hashrate
   });
 
@@ -61,6 +78,14 @@ setInterval(() => {
     poolConnected: true,
     shares: engineStats.shares,
     difficulty: engineStats.difficulty
+  });
+
+  tui.updateWallet({
+    address: walletInfo.address,
+    brl: lastPrice.brl,
+    usd: lastPrice.usd,
+    energyCost: finance.cost,
+    minedValue: finance.revenue
   });
 
   // Simulação de progresso do job

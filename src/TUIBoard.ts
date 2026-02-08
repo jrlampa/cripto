@@ -69,13 +69,13 @@ export class TUIBoard {
       tags: true
     });
 
-    // Wallet Section (Middle)
+    // Wallet Section
     this.walletBox = blessed.box({
       parent: this.screen,
       top: 15,
       left: 0,
       width: '100%',
-      height: 4,
+      height: 6, // Aumentado de 4 para 6
       label: ' [ FINANCEIRO & CARTEIRA ] ',
       border: { type: 'line' },
       style: { border: { fg: 'yellow' } },
@@ -98,13 +98,16 @@ export class TUIBoard {
     // Log Section (Bottom)
     this.logBox = blessed.log({
       parent: this.screen,
-      bottom: 3, // Adjusted to be above progressBox
+      bottom: 3,
       left: 0,
       width: '100%',
-      height: '30%', // This height will be relative to the screen, but its bottom is now 3
+      height: '25%', // Reduzido ligeiramente para dar espaço
       label: ' [ LOGS DE REDE / EVENTOS ] ',
       border: { type: 'line' },
       style: { border: { fg: 'white' } },
+      scrollable: true,
+      alwaysScroll: true,
+      tags: true,
       scrollbar: {
         ch: ' ',
         track: { bg: 'cyan' },
@@ -181,10 +184,21 @@ export class TUIBoard {
     this.render();
   }
 
-  public updateWallet(info: { address: string, brl: number, usd: number }): void {
+  public updateWallet(info: {
+    address: string,
+    brl: number,
+    usd: number,
+    energyCost?: number,
+    minedValue?: number
+  }): void {
+    const profit = (info.minedValue || 0) - (info.energyCost || 0);
+    const profitColor = profit >= 0 ? '{green-fg}' : '{red-fg}';
+
     this.walletBox.setContent(
       `Endereço: {cyan-fg}${info.address}{/cyan-fg}\n` +
-      `Cotação XMR: {bold}{green-fg}R$ ${info.brl.toLocaleString()}{/green-fg} | {green-fg}$${info.usd.toLocaleString()}{/green-fg}{/bold}`
+      `Cotação:  {bold}R$ ${info.brl.toLocaleString()}{/bold} | {bold}$${info.usd.toLocaleString()}{/bold}\n` +
+      `Energia:  {red-fg}R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg}\n` +
+      `Saldo:    ${profitColor}{bold}R$ ${profit.toFixed(4)}{/bold}{/}`
     );
     this.render();
   }
