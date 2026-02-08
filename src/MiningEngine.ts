@@ -13,6 +13,7 @@ export class MiningEngine {
   private difficulty: number = 0;
   private isPaused: boolean = false;
   private manualThreads: number | null = null; // null significa "usar lógica automática"
+  private workerHashrates: Map<number, number> = new Map();
 
   constructor(host: string, port: number, private address: string) {
     this.idleDetector = new IdleDetector();
@@ -63,10 +64,14 @@ export class MiningEngine {
   }
 
   public getStats() {
+    let totalHashrate = 0;
+    this.workerHashrates.forEach(h => totalHashrate += h);
+
     return {
       shares: this.sharesFound,
       difficulty: this.difficulty,
-      job: this.currentJob
+      job: this.currentJob,
+      hashrate: totalHashrate
     };
   }
 
@@ -110,6 +115,8 @@ export class MiningEngine {
         if (msg.type === 'submit') {
           this.sharesFound++;
           this.client.submit(msg.jobId, msg.nonce, msg.result);
+        } else if (msg.type === 'hashrate') {
+          this.workerHashrates.set(i, msg.hashrate);
         }
       });
 
@@ -123,5 +130,6 @@ export class MiningEngine {
   private stopWorkers(): void {
     this.workers.forEach(w => w.terminate());
     this.workers = [];
+    this.workerHashrates.clear();
   }
 }

@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "axios": "^1.13.4",
-    "blessed": "^0.1.81"
+    "blessed": "^0.1.81",
+    "randomx.js": "^0.1.3"
   }
 }

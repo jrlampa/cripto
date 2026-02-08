@@ -77,7 +77,8 @@ setInterval(() => {
 
   // Atualiza Financeiro Real-time
   const walletMeta = wallet.getWalletInfo();
-  profitService.update(cpuLoad, currentGpuLoad, engineStats.job ? cpuLoad + gpuStatus.hashrate : 0, lastPrice.brl, deltaMs);
+  const totalHashrate = engineStats.job ? (engineStats.hashrate || 0) + gpuStatus.hashrate : 0;
+  profitService.update(cpuLoad, currentGpuLoad, totalHashrate, lastPrice.brl, deltaMs);
   const finance = profitService.getFinanceReport((walletMeta.initialXMR || 0) + profitService.getFinanceReport().xmr);
 
   tui.updateCPU(cpuLoad);
@@ -94,7 +95,8 @@ setInterval(() => {
     poolConnected: true,
     shares: engineStats.shares,
     difficulty: engineStats.difficulty,
-    isPaused: engine.isEnginePaused()
+    isPaused: engine.isEnginePaused(),
+    hashrate: engineStats.hashrate // Novo: passa hashrate da CPU
   });
 
   tui.updateWallet({

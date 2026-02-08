@@ -26,7 +26,7 @@ export class TUIBoard extends EventEmitter {
       left: 0,
       width: '100%',
       height: 3,
-      content: ' {bold}ANTIGRAVITY SMART MINER v3.0{/bold} | Monero (XMR) ',
+      content: ' {bold}ANTIGRAVITY SMART MINER v3.0{/bold} | Monero (Real RandomX) ',
       style: {
         bg: 'blue',
         fg: 'white'
@@ -168,7 +168,8 @@ export class TUIBoard extends EventEmitter {
     poolConnected: boolean,
     shares?: number,
     difficulty?: number,
-    isPaused?: boolean
+    isPaused?: boolean,
+    hashrate?: number
   }): void {
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
     const h = Math.floor(uptime / 3600);
@@ -186,6 +187,7 @@ export class TUIBoard extends EventEmitter {
       `Threads: {bold}${info.threads}{/bold} (Use +/- para ajustar)\n` +
       `Conexão: ${info.poolConnected ? '{green-fg}Conectado{/green-fg}' : '{red-fg}Desconectado{/red-fg}'}\n` +
       `Pool: {cyan-fg}${info.pool}{/cyan-fg}\n\n` +
+      `Hashrate CPU: {yellow-fg}${info.hashrate?.toFixed(2) || '0.00'}{/yellow-fg} H/s\n` +
       `Shares: {yellow-fg}${info.shares || 0}{/yellow-fg}\n` +
       `Diff:   {blue-fg}${info.difficulty || 'N/A'}{/blue-fg}\n` +
       `Uptime: {bold}${uptimeStr}{/bold}`
