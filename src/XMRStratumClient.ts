@@ -72,6 +72,11 @@ export class XMRStratumClient extends EventEmitter {
       this.emit('login_success', json.result);
     } else if (json.method === 'mining.set_difficulty') {
       this.emit('difficulty', json.params[0]);
+    } else if (json.result && (json.result === true || json.result.status === 'OK' || json.result === 'OK')) {
+      // Resposta de sucesso a um submit
+      this.emit('share_accepted', json);
+    } else if (json.error) {
+      this.emit('share_rejected', json.error);
     } else {
       this.emit('response', json);
     }

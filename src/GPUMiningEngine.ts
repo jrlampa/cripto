@@ -17,7 +17,8 @@ export class GPUMiningEngine {
   public getStatus() {
     return {
       active: this.isActive,
-      hashrate: this.hashrate
+      hashrate: this.hashrate,
+      isSimulated: true
     };
   }
 

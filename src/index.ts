@@ -85,7 +85,8 @@ setInterval(() => {
   tui.updateGPU({
     model: gpuModel,
     load: currentGpuLoad,
-    hashrate: gpuStatus.hashrate
+    hashrate: gpuStatus.hashrate,
+    isSimulated: gpuStatus.isSimulated
   });
 
   tui.updateStats({
@@ -160,5 +161,13 @@ tui.on('exit', handleExit);
 tui.on('toggle_pause', () => engine.togglePause());
 tui.on('increase_threads', () => engine.adjustThreads(1));
 tui.on('decrease_threads', () => engine.adjustThreads(-1));
+
+engine.on('share_accepted', (res) => {
+  tui.log(`✅ {green-fg}Share aceito pela pool!{/green-fg} (Res: ${JSON.stringify(res.result)})`);
+});
+
+engine.on('share_rejected', (err) => {
+  tui.log(`❌ {red-fg}Share rejeitado:{/red-fg} ${JSON.stringify(err)}`);
+});
 
 process.on('SIGINT', handleExit);

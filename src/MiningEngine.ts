@@ -1,9 +1,10 @@
 import { Worker } from 'worker_threads';
 import * as os from 'os';
+import { EventEmitter } from 'events';
 import { IdleDetector } from './IdleDetector';
 import { XMRStratumClient } from './XMRStratumClient';
 
-export class MiningEngine {
+export class MiningEngine extends EventEmitter {
   private workers: Worker[] = [];
   private idleDetector: IdleDetector;
   private client: XMRStratumClient;
@@ -16,6 +17,7 @@ export class MiningEngine {
   private workerHashrates: Map<number, number> = new Map();
 
   constructor(host: string, port: number, private address: string) {
+    super();
     this.idleDetector = new IdleDetector();
     this.client = new XMRStratumClient(host, port);
 
@@ -35,6 +37,14 @@ export class MiningEngine {
 
     this.client.on('difficulty', (diff) => {
       this.difficulty = diff;
+    });
+
+    this.client.on('share_accepted', (res) => {
+      this.emit('share_accepted', res);
+    });
+
+    this.client.on('share_rejected', (err) => {
+      this.emit('share_rejected', err);
     });
   }
 

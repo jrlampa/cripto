@@ -206,14 +206,15 @@ export class TUIBoard extends EventEmitter {
     );
   }
 
-  public updateGPU(data: { model: string, load: number, hashrate: number }): void {
+  public updateGPU(data: { model: string, load: number, hashrate: number, isSimulated?: boolean }): void {
     const barWidth = 20;
     const filled = Math.round((data.load / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
+    const simLabel = data.isSimulated ? ' {yellow-fg}(Simulado){/yellow-fg}' : '';
 
     this.gpuBox.content = '';
     this.gpuBox.setContent(
-      `Modelo: {bold}${data.model}{/bold}\n` +
+      `Modelo: {bold}${data.model}${simLabel}{/bold}\n` +
       `Carga:  ${bar} {bold}${data.load}%{/bold}\n` +
       `Hash:   {bold}${data.hashrate} H/s{/bold}`
     );

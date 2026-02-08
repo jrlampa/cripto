@@ -1,1 +1,0 @@
-{"version":3,"file":"MiningEngine.d.ts","sourceRoot":"","sources":["MiningEngine.ts"],"names":[],"mappings":"AAIA,qBAAa,YAAY;IACvB,OAAO,CAAC,OAAO,CAAgB;IAC/B,OAAO,CAAC,YAAY,CAAe;IACnC,OAAO,CAAC,QAAQ,CAAC,QAAQ,CAAoB;;IAOtC,KAAK,IAAI,IAAI;IAMpB,OAAO,CAAC,YAAY;IAWpB,OAAO,CAAC,WAAW;IAKnB,OAAO,CAAC,iBAAiB;CAS1B"}
