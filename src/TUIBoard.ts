@@ -16,7 +16,15 @@ export class TUIBoard extends EventEmitter {
     super();
     this.screen = blessed.screen({
       smartCSR: true,
+      fastCSR: true,
+      fullUnicode: true,
       title: 'Antigravity Monero Miner v3'
+    });
+
+    // Handle terminal resize
+    this.screen.on('resize', () => {
+      this.screen.realloc();
+      this.render();
     });
 
     // Dashboard Header
@@ -181,7 +189,6 @@ export class TUIBoard extends EventEmitter {
     if (info.isPaused) stateColor = '{red-fg}PAUSADO{/red-fg}';
     else stateColor = `${stateColor}${info.state}{/stateColor}`;
 
-    this.statsBox.content = '';
     this.statsBox.setContent(
       `Estado: {bold}${stateColor}{/bold}\n` +
       `Threads: {bold}${info.threads}{/bold} (Use +/- para ajustar)\n` +
@@ -199,7 +206,6 @@ export class TUIBoard extends EventEmitter {
     const filled = Math.round((usage / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
 
-    this.cpuBox.content = '';
     this.cpuBox.setContent(
       `Carga: ${bar} {bold}${usage}%{/bold}\n` +
       `Núcleos: {bold}${os.cpus().length}{/bold}`
@@ -212,7 +218,6 @@ export class TUIBoard extends EventEmitter {
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
     const simLabel = data.isSimulated ? ' {yellow-fg}(Simulado){/yellow-fg}' : '';
 
-    this.gpuBox.content = '';
     this.gpuBox.setContent(
       `Modelo: {bold}${data.model}${simLabel}{/bold}\n` +
       `Carga:  ${bar} {bold}${data.load}%{/bold}\n` +
@@ -249,7 +254,6 @@ export class TUIBoard extends EventEmitter {
     const progress = (lifetimeXMR / payoutMeta) * 100;
     const progressColor = progress >= 100 ? '{green-fg}' : '{yellow-fg}';
 
-    this.walletBox.content = '';
     this.walletBox.setContent(
       `Endereço: {cyan-fg}${info.address}{/cyan-fg} | Sessões: {bold}${info.sessions || 1}{/bold}\n` +
       `XMR Total: {bold}${lifetimeXMR.toFixed(8)} XMR{/bold} | Meta: {bold}${payoutMeta} XMR{/bold} (R$ ${(payoutMeta * info.brl).toFixed(2)})\n` +
@@ -266,7 +270,6 @@ export class TUIBoard extends EventEmitter {
       return;
     }
 
-    this.poolBox.content = '';
     this.poolBox.setContent(
       `Saldo: {green-fg}${data.balance.toFixed(8)} XMR{/green-fg} | Não Confirmado: {yellow-fg}${data.unconfirmedBalance.toFixed(8)} XMR{/yellow-fg}\n` +
       `Hashrate Pool: {bold}${data.hashrate.toFixed(2)} H/s{/bold}\n` +

@@ -7,6 +7,11 @@ import { ProfitabilityService } from './ProfitabilityService';
 import { PoolService } from './PoolService';
 
 const tui = new TUIBoard();
+
+// Redireciona logs IMEDIATAMENTE para o TUI para manter a tela limpa
+const originalLog = console.log;
+console.log = (...args) => tui.log(args.join(' '));
+
 tui.log("Iniciando minerador inteligente...");
 
 const POOL_HOST = 'xmr-eu1.nanopool.org';
@@ -56,10 +61,6 @@ async function initGPU() {
 }
 
 let progress = 0;
-
-// Redireciona logs para o TUI para manter a tela limpa
-const originalLog = console.log;
-console.log = (...args) => tui.log(args.join(' '));
 
 // Configura o dashboard fixo
 setInterval(() => {
