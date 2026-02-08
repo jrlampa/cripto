@@ -216,10 +216,10 @@ export class TUIBoard extends EventEmitter {
     const barWidth = 20;
     const filled = Math.round((data.load / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
-    const simLabel = data.isSimulated ? ' {red-fg}(EMULADA - SEM NATIVO){/red-fg}' : '';
+    const statusLabel = data.hashrate === 0 ? ' {red-fg}(INATIVO - APENAS CPU){/red-fg}' : '';
 
     this.gpuBox.setContent(
-      `Modelo: {bold}${data.model}${simLabel}{/bold}\n` +
+      `Modelo: {bold}${data.model}${statusLabel}{/bold}\n` +
       `Carga:  ${bar} {bold}${data.load}%{/bold}\n` +
       `Hash:   {bold}${data.hashrate} H/s{/bold}`
     );

@@ -2,7 +2,6 @@ import { MiningEngine } from './MiningEngine';
 import { WalletService } from './WalletService';
 import { TUIBoard } from './TUIBoard';
 import { GPUDetector } from './GPUDetector';
-import { GPUSimulator } from './GPUSimulator';
 import { ProfitabilityService } from './ProfitabilityService';
 import { PoolService } from './PoolService';
 
@@ -21,7 +20,6 @@ const wallet = new WalletService();
 const walletInfo = wallet.getWalletInfo();
 const engine = new MiningEngine(POOL_HOST, POOL_PORT, walletInfo.address);
 const gpuDetector = new GPUDetector();
-const gpuSim = new GPUSimulator();
 const profitService = new ProfitabilityService();
 const poolService = new PoolService(walletInfo.address);
 
@@ -72,22 +70,18 @@ setInterval(() => {
   const cpuLoad = Math.floor(Math.random() * 5) + (engine.getActiveWorkersCount() > 1 ? 95 : 10);
   const engineStats = engine.getStats();
 
-  gpuSim.setPower(isIdle);
-  const gpuStatus = gpuSim.getStatus();
-  const currentGpuLoad = gpuSim.getSimulatedLoad();
-
   // Atualiza Financeiro Real-time
   const walletMeta = wallet.getWalletInfo();
-  const totalHashrate = engineStats.job ? (engineStats.hashrate || 0) + gpuStatus.hashrate : 0;
-  profitService.update(cpuLoad, currentGpuLoad, totalHashrate, lastPrice.brl, deltaMs);
+  const totalHashrate = engineStats.job ? (engineStats.hashrate || 0) : 0;
+  profitService.update(cpuLoad, 0, totalHashrate, lastPrice.brl, deltaMs);
   const finance = profitService.getFinanceReport((walletMeta.initialXMR || 0) + profitService.getFinanceReport().xmr);
 
   tui.updateCPU(cpuLoad);
   tui.updateGPU({
     model: gpuModel,
-    load: currentGpuLoad,
-    hashrate: gpuStatus.hashrate,
-    isSimulated: gpuStatus.isSimulated
+    load: 0,
+    hashrate: 0,
+    isSimulated: false
   });
 
   tui.updateStats({
