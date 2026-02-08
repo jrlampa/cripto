@@ -20,6 +20,8 @@
     "strict": true,
     "verbatimModuleSyntax": false,
     "isolatedModules": true,
-    "skipLibCheck": true,
-  }
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["tests", "node_modules", "dist"]
 }

@@ -6,6 +6,7 @@ export class TUIBoard {
   private logBox: any;
   private statsBox: any;
   private cpuBox: any;
+  private gpuBox: any;
   private walletBox: any;
 
   constructor() {
@@ -41,26 +42,39 @@ export class TUIBoard {
       tags: true
     });
 
-    // CPU Cores Section (Right)
+    // CPU Section
     this.cpuBox = blessed.box({
       parent: this.screen,
       top: 3,
       right: 0,
       width: '50%',
-      height: 10,
-      label: ' [ HARDWARE & CARGA ] ',
+      height: 6,
+      label: ' [ CPU & CARGA ] ',
       border: { type: 'line' },
       style: { border: { fg: 'green' } },
+      tags: true
+    });
+
+    // GPU Section
+    this.gpuBox = blessed.box({
+      parent: this.screen,
+      top: 9,
+      right: 0,
+      width: '50%',
+      height: 6,
+      label: ' [ GPU & CARGA ] ',
+      border: { type: 'line' },
+      style: { border: { fg: 'magenta' } },
       tags: true
     });
 
     // Wallet Section (Middle)
     this.walletBox = blessed.box({
       parent: this.screen,
-      top: 13,
+      top: 15,
       left: 0,
       width: '100%',
-      height: 6,
+      height: 4,
       label: ' [ FINANCEIRO & CARTEIRA ] ',
       border: { type: 'line' },
       style: { border: { fg: 'yellow' } },
@@ -114,14 +128,26 @@ export class TUIBoard {
   }
 
   public updateCPU(usage: number): void {
-    const barWidth = 30;
+    const barWidth = 20;
     const filled = Math.round((usage / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
 
     this.cpuBox.setContent(
-      `CPU: {bold}${os.cpus()[0]?.model}{/bold}\n\n` +
-      `Carga Total: ${bar} {bold}${usage}%{/bold}\n` +
+      `Carga: ${bar} {bold}${usage}%{/bold}\n` +
       `Núcleos: {bold}${os.cpus().length}{/bold}`
+    );
+    this.render();
+  }
+
+  public updateGPU(data: { model: string, load: number, hashrate: number }): void {
+    const barWidth = 20;
+    const filled = Math.round((data.load / 100) * barWidth);
+    const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
+
+    this.gpuBox.setContent(
+      `Modelo: {bold}${data.model}{/bold}\n` +
+      `Carga:  ${bar} {bold}${data.load}%{/bold}\n` +
+      `Hash:   {bold}${data.hashrate} H/s{/bold}`
     );
     this.render();
   }
