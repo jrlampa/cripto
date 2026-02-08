@@ -8,6 +8,7 @@ export class TUIBoard {
   private cpuBox: any;
   private gpuBox: any;
   private walletBox: any;
+  private progressBox: any;
 
   constructor() {
     this.screen = blessed.screen({
@@ -81,13 +82,26 @@ export class TUIBoard {
       tags: true
     });
 
-    // Log Section (Bottom)
-    this.logBox = blessed.log({
+    // Progress Section (Bottom)
+    this.progressBox = blessed.box({
       parent: this.screen,
       bottom: 0,
       left: 0,
       width: '100%',
-      height: '30%',
+      height: 3,
+      label: ' [ PROGRESSO DOS CALCULOS ] ',
+      border: { type: 'line' },
+      style: { border: { fg: 'cyan' } },
+      tags: true
+    });
+
+    // Log Section (Bottom)
+    this.logBox = blessed.log({
+      parent: this.screen,
+      bottom: 3, // Adjusted to be above progressBox
+      left: 0,
+      width: '100%',
+      height: '30%', // This height will be relative to the screen, but its bottom is now 3
       label: ' [ LOGS DE REDE / EVENTOS ] ',
       border: { type: 'line' },
       style: { border: { fg: 'white' } },
@@ -114,15 +128,30 @@ export class TUIBoard {
     this.logBox.log(`[{cyan-fg}${time}{/cyan-fg}] ${message}`);
   }
 
-  public updateStats(data: { state: string, threads: number, pool: string, poolConnected: boolean }): void {
-    const stateColor = data.state === 'ÓCIO' ? '{bold}{magenta-fg}' : '{bold}{yellow-fg}';
-    const connStatus = data.poolConnected ? '{bold}{green-fg}ONLINE{/green-fg}{/bold}' : '{bold}{red-fg}OFFLINE{/red-fg}{/bold}';
+  private startTime: number = Date.now();
+
+  public updateStats(info: {
+    state: string,
+    threads: number,
+    pool: string,
+    poolConnected: boolean,
+    shares?: number,
+    difficulty?: number
+  }): void {
+    const uptime = Math.floor((Date.now() - this.startTime) / 1000);
+    const h = Math.floor(uptime / 3600);
+    const m = Math.floor((uptime % 3600) / 60);
+    const s = uptime % 60;
+    const uptimeStr = `${h}h ${m}m ${s}s`;
 
     this.statsBox.setContent(
-      `Estado Atual: ${stateColor}${data.state}{/${data.state === 'ÓCIO' ? 'magenta-fg' : 'yellow-fg'}}{/bold}\n` +
-      `Threads Ativas: {bold}${data.threads}{/bold}\n` +
-      `Pool: {bold}${data.pool}{/bold}\n` +
-      `Conexão: ${connStatus}`
+      `Estado: {bold}${info.state}{/bold}\n` +
+      `Threads: {bold}${info.threads}{/bold}\n` +
+      `Conexão: ${info.poolConnected ? '{green-fg}Conectado{/green-fg}' : '{red-fg}Desconectado{/red-fg}'}\n` +
+      `Pool: {cyan-fg}${info.pool}{/cyan-fg}\n\n` +
+      `Shares: {yellow-fg}${info.shares || 0}{/yellow-fg}\n` +
+      `Diff:   {blue-fg}${info.difficulty || 'N/A'}{/blue-fg}\n` +
+      `Uptime: {bold}${uptimeStr}{/bold}`
     );
     this.render();
   }
@@ -155,8 +184,17 @@ export class TUIBoard {
   public updateWallet(info: { address: string, brl: number, usd: number }): void {
     this.walletBox.setContent(
       `Endereço: {cyan-fg}${info.address}{/cyan-fg}\n` +
-      `Cotação XMR: {bold}R$ ${info.brl.toFixed(2)}{/bold} | {bold}$ ${info.usd.toFixed(2)}{/bold} (Live)`
+      `Cotação XMR: {bold}{green-fg}R$ ${info.brl.toLocaleString()}{/green-fg} | {green-fg}$${info.usd.toLocaleString()}{/green-fg}{/bold}`
     );
+    this.render();
+  }
+
+  public updateProgress(percent: number): void {
+    const width = this.progressBox.width - 4;
+    const filled = Math.round((percent / 100) * width);
+    const bar = '█'.repeat(filled) + '░'.repeat(Math.max(0, width - filled));
+
+    this.progressBox.setContent(`{cyan-fg}${bar}{/cyan-fg} ${percent}%`);
     this.render();
   }
 

@@ -9,6 +9,8 @@ export class MiningEngine {
   private client: XMRStratumClient;
   private readonly numCores = os.cpus().length;
   private currentJob: any = null;
+  private sharesFound: number = 0;
+  private difficulty: number = 0;
 
   constructor(host: string, port: number, private address: string) {
     this.idleDetector = new IdleDetector();
@@ -24,6 +26,10 @@ export class MiningEngine {
       this.currentJob = job;
       this.updateWorkersJob();
     });
+
+    this.client.on('difficulty', (diff) => {
+      this.difficulty = diff;
+    });
   }
 
   public isIdle(): boolean {
@@ -32,6 +38,14 @@ export class MiningEngine {
 
   public getActiveWorkersCount(): number {
     return this.workers.length;
+  }
+
+  public getStats() {
+    return {
+      shares: this.sharesFound,
+      difficulty: this.difficulty,
+      job: this.currentJob
+    };
   }
 
   public start(): void {
@@ -54,6 +68,13 @@ export class MiningEngine {
       const worker = new Worker(workerPath, {
         workerData: { id: i }
       });
+      worker.on('message', (msg) => {
+        if (msg.type === 'submit') {
+          this.sharesFound++;
+          this.client.submit(msg.jobId, msg.nonce, msg.result);
+        }
+      });
+
       if (this.currentJob) {
         worker.postMessage({ type: 'job', job: this.currentJob });
       }

@@ -36,10 +36,13 @@ async function initGPU() {
   }
 }
 
+let progress = 0;
+
 // Configura o dashboard fixo
 setInterval(() => {
   const isIdle = engine.isIdle();
   const cpuLoad = Math.floor(Math.random() * 5) + (engine.getActiveWorkersCount() > 1 ? 95 : 10);
+  const engineStats = engine.getStats();
 
   gpuEngine.setPower(isIdle);
   const gpuStatus = gpuEngine.getStatus();
@@ -55,8 +58,15 @@ setInterval(() => {
     state: isIdle ? 'ÓCIO' : 'ATIVO',
     threads: engine.getActiveWorkersCount(),
     pool: POOL_HOST,
-    poolConnected: true
+    poolConnected: true,
+    shares: engineStats.shares,
+    difficulty: engineStats.difficulty
   });
+
+  // Simulação de progresso do job
+  progress += Math.floor(Math.random() * 3) + 1;
+  if (progress > 100) progress = 0;
+  tui.updateProgress(progress);
 }, 1000);
 
 // Inicia a mineração
