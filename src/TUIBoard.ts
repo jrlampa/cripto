@@ -9,6 +9,7 @@ export class TUIBoard extends EventEmitter {
   private cpuBox: any;
   private gpuBox: any;
   private walletBox: any;
+  private poolBox: any;
   private progressBox: any;
 
   constructor() {
@@ -38,7 +39,7 @@ export class TUIBoard extends EventEmitter {
       top: 3,
       left: 0,
       width: '50%',
-      height: 10,
+      height: 12, // Aumentado para 12
       label: ' [ RESUMO DO SISTEMA ] ',
       border: { type: 'line' },
       style: { border: { fg: 'cyan' } },
@@ -77,10 +78,23 @@ export class TUIBoard extends EventEmitter {
       top: 15,
       left: 0,
       width: '100%',
-      height: 8, // Aumentado de 6 para 8 para caber acumulado
+      height: 8,
       label: ' [ FINANCEIRO & CARTEIRA ] ',
       border: { type: 'line' },
       style: { border: { fg: 'yellow' } },
+      tags: true
+    });
+
+    // Pool Section (NEW)
+    this.poolBox = blessed.box({
+      parent: this.screen,
+      top: 23,
+      left: 0,
+      width: '100%',
+      height: 7,
+      label: ' [ ESTATISTICAS DA POOL (NANOPOOL) ] ',
+      border: { type: 'line' },
+      style: { border: { fg: 'blue' } },
       tags: true
     });
 
@@ -103,7 +117,7 @@ export class TUIBoard extends EventEmitter {
       bottom: 3,
       left: 0,
       width: '100%',
-      height: '25%', // Reduzido ligeiramente para dar espaço
+      height: '20%',
       label: ' [ LOGS DE REDE / EVENTOS ] ',
       border: { type: 'line' },
       style: { border: { fg: 'white' } },
@@ -148,7 +162,7 @@ export class TUIBoard extends EventEmitter {
     const s = uptime % 60;
     const uptimeStr = `${h}h ${m}m ${s}s`;
 
-    this.statsBox.content = ''; // Clear before setting
+    this.statsBox.content = '';
     this.statsBox.setContent(
       `Estado: {bold}${info.state}{/bold}\n` +
       `Threads: {bold}${info.threads}{/bold}\n` +
@@ -158,7 +172,6 @@ export class TUIBoard extends EventEmitter {
       `Diff:   {blue-fg}${info.difficulty || 'N/A'}{/blue-fg}\n` +
       `Uptime: {bold}${uptimeStr}{/bold}`
     );
-    this.render();
   }
 
   public updateCPU(usage: number): void {
@@ -166,11 +179,11 @@ export class TUIBoard extends EventEmitter {
     const filled = Math.round((usage / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
 
+    this.cpuBox.content = '';
     this.cpuBox.setContent(
       `Carga: ${bar} {bold}${usage}%{/bold}\n` +
       `Núcleos: {bold}${os.cpus().length}{/bold}`
     );
-    this.render();
   }
 
   public updateGPU(data: { model: string, load: number, hashrate: number }): void {
@@ -178,12 +191,12 @@ export class TUIBoard extends EventEmitter {
     const filled = Math.round((data.load / 100) * barWidth);
     const bar = '[' + '='.repeat(filled) + ' '.repeat(barWidth - filled) + ']';
 
+    this.gpuBox.content = '';
     this.gpuBox.setContent(
       `Modelo: {bold}${data.model}{/bold}\n` +
       `Carga:  ${bar} {bold}${data.load}%{/bold}\n` +
       `Hash:   {bold}${data.hashrate} H/s{/bold}`
     );
-    this.render();
   }
 
   public updateWallet(info: {
@@ -197,13 +210,16 @@ export class TUIBoard extends EventEmitter {
     totalCost?: number,
     xmr?: number,
     initialXMR?: number,
-    minPayout?: number
+    minPayout?: number,
+    etaPayout?: string,
+    eta1XMR?: string
   }): void {
     const sessionProfit = (info.minedValue || 0) - (info.energyCost || 0);
     const profitColor = sessionProfit >= 0 ? '{green-fg}' : '{red-fg}';
 
-    const lifetimeMined = (info.totalMined || 0) + (info.minedValue || 0);
-    const lifetimeCost = (info.totalCost || 0) + (info.energyCost || 0);
+    const walletInfo = info.totalMined !== undefined ? { mined: info.totalMined, cost: info.totalCost } : { mined: 0, cost: 0 };
+    const lifetimeMined = (walletInfo.mined || 0) + (info.minedValue || 0);
+    const lifetimeCost = (walletInfo.cost || 0) + (info.energyCost || 0);
     const lifetimeProfit = lifetimeMined - lifetimeCost;
     const lifetimeColor = lifetimeProfit >= 0 ? '{green-fg}' : '{red-fg}';
 
@@ -212,15 +228,29 @@ export class TUIBoard extends EventEmitter {
     const progress = (lifetimeXMR / payoutMeta) * 100;
     const progressColor = progress >= 100 ? '{green-fg}' : '{yellow-fg}';
 
-    this.walletBox.content = ''; // Clear artifacts
+    this.walletBox.content = '';
     this.walletBox.setContent(
       `Endereço: {cyan-fg}${info.address}{/cyan-fg} | Sessões: {bold}${info.sessions || 1}{/bold}\n` +
       `XMR Total: {bold}${lifetimeXMR.toFixed(8)} XMR{/bold} | Meta: {bold}${payoutMeta} XMR{/bold} (R$ ${(payoutMeta * info.brl).toFixed(2)})\n` +
-      `Progresso Payout: ${progressColor}[${'█'.repeat(Math.floor(progress / 5))}${'░'.repeat(20 - Math.floor(progress / 5))}] ${progress.toFixed(2)}%{/}\n` +
+      `Progresso: ${progressColor}[${'█'.repeat(Math.floor(Math.min(100, progress) / 5))}${'░'.repeat(20 - Math.floor(Math.min(100, progress) / 5))}] ${Math.min(100, progress).toFixed(2)}%{/}\n` +
+      `ETA Payout: {bold}${info.etaPayout || '---'}{/bold} | ETA 1.0 XMR: {bold}${info.eta1XMR || '---'}{/bold}\n` +
       `Sessão:   {red-fg}Luz R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg} | Saldo: ${profitColor}R$ ${sessionProfit.toFixed(4)}{/}\n` +
       `Total:    {red-fg}Luz R$ ${lifetimeCost.toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${lifetimeMined.toFixed(4)}{/green-fg} | Saldo: ${lifetimeColor}{bold}R$ ${lifetimeProfit.toFixed(4)}{/bold}{/}`
     );
-    this.render();
+  }
+
+  public updatePoolStats(data: any): void {
+    if (!data) {
+      this.poolBox.setContent('{red-fg}⚠️ Aguardando dados da Nanopool...{/red-fg}');
+      return;
+    }
+
+    this.poolBox.content = '';
+    this.poolBox.setContent(
+      `Saldo: {green-fg}${data.balance.toFixed(8)} XMR{/green-fg} | Não Confirmado: {yellow-fg}${data.unconfirmedBalance.toFixed(8)} XMR{/yellow-fg}\n` +
+      `Hashrate Pool: {bold}${data.hashrate.toFixed(2)} H/s{/bold}\n` +
+      `Médias: {cyan-fg}1h: ${data.avgHashrate.h1.toFixed(2)}{/cyan-fg} | {cyan-fg}12h: ${data.avgHashrate.h12.toFixed(2)}{/cyan-fg} | {cyan-fg}24h: ${data.avgHashrate.h24.toFixed(2)}{/cyan-fg}`
+    );
   }
 
   public updateProgress(percent: number): void {
@@ -229,10 +259,9 @@ export class TUIBoard extends EventEmitter {
     const bar = '█'.repeat(filled) + '░'.repeat(Math.max(0, width - filled));
 
     this.progressBox.setContent(`{cyan-fg}${bar}{/cyan-fg} ${percent}%`);
-    this.render();
   }
 
-  private render(): void {
+  public render(): void {
     this.screen.render();
   }
 }

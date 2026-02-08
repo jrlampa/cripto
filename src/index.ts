@@ -4,6 +4,7 @@ import { TUIBoard } from './TUIBoard';
 import { GPUDetector } from './GPUDetector';
 import { GPUMiningEngine } from './GPUMiningEngine';
 import { ProfitabilityService } from './ProfitabilityService';
+import { PoolService } from './PoolService';
 
 const tui = new TUIBoard();
 tui.log("Iniciando minerador inteligente...");
@@ -17,10 +18,12 @@ const engine = new MiningEngine(POOL_HOST, POOL_PORT, walletInfo.address);
 const gpuDetector = new GPUDetector();
 const gpuEngine = new GPUMiningEngine();
 const profitService = new ProfitabilityService();
+const poolService = new PoolService(walletInfo.address);
 
 let gpuModel = "Buscando...";
 let lastPrice = { brl: 0, usd: 0 };
 let lastUpdateTime = Date.now();
+let lastPoolStats: any = null;
 
 tui.updateWallet({ address: walletInfo.address, brl: 0, usd: 0 });
 
@@ -31,6 +34,14 @@ async function updateFinance() {
     brl: lastPrice.brl,
     usd: lastPrice.usd
   });
+}
+
+async function updatePoolData() {
+  const stats = await poolService.fetchStats();
+  if (stats) {
+    lastPoolStats = stats;
+    tui.log(`Pool: Dados da Nanopool atualizados. Saldo: ${stats.balance} XMR`);
+  }
 }
 
 async function initGPU() {
@@ -65,8 +76,9 @@ setInterval(() => {
   const currentGpuLoad = gpuEngine.getSimulatedLoad();
 
   // Atualiza Financeiro Real-time
+  const walletMeta = wallet.getWalletInfo();
   profitService.update(cpuLoad, currentGpuLoad, engineStats.job ? cpuLoad + gpuStatus.hashrate : 0, lastPrice.brl, deltaMs);
-  const finance = profitService.getFinanceReport();
+  const finance = profitService.getFinanceReport((walletMeta.initialXMR || 0) + profitService.getFinanceReport().xmr);
 
   tui.updateCPU(cpuLoad);
   tui.updateGPU({
@@ -90,18 +102,25 @@ setInterval(() => {
     usd: lastPrice.usd,
     energyCost: finance.cost,
     minedValue: finance.revenue,
-    sessions: wallet.getWalletInfo().sessions,
-    totalMined: wallet.getWalletInfo().initialMined,
-    totalCost: wallet.getWalletInfo().initialCost,
+    sessions: walletMeta.sessions,
+    totalMined: walletMeta.initialMined,
+    totalCost: walletMeta.initialCost,
     xmr: finance.xmr,
-    initialXMR: wallet.getWalletInfo().initialXMR,
-    minPayout: finance.minPayout
+    initialXMR: walletMeta.initialXMR,
+    minPayout: finance.minPayout,
+    etaPayout: finance.etaPayout,
+    eta1XMR: finance.eta1XMR
   });
+
+  tui.updatePoolStats(lastPoolStats);
 
   // Simulação de progresso do job
   progress += Math.floor(Math.random() * 3) + 1;
   if (progress > 100) progress = 0;
   tui.updateProgress(progress);
+
+  // Renderização final (batch)
+  tui.render();
 }, 1000);
 
 // Salvamento periódico (Auto-save) a cada 30 segundos
@@ -114,8 +133,10 @@ setInterval(() => {
 wallet.incrementSession(); // Incrementa contador de sessões
 engine.start();
 updateFinance();
+updatePoolData();
 initGPU();
 setInterval(updateFinance, 5 * 60 * 1000);
+setInterval(updatePoolData, 5 * 60 * 1000);
 
 tui.log(`Conectado à pool ${POOL_HOST}`);
 tui.log(`Carteira carregada: ${walletInfo.address.substring(0, 8)}... | Sessão #${wallet.getWalletInfo().sessions}`);
