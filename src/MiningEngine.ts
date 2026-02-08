@@ -127,6 +127,8 @@ export class MiningEngine extends EventEmitter {
           this.client.submit(msg.jobId, msg.nonce, msg.result);
         } else if (msg.type === 'hashrate') {
           this.workerHashrates.set(i, msg.hashrate);
+        } else if (msg.type === 'log') {
+          console.log(`[Worker ${i}] ${msg.message}`);
         }
       });
 

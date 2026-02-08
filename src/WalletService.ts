@@ -6,7 +6,8 @@ import * as os from 'os';
 
 export class WalletService {
   private lastPrice: number = 0;
-  private walletAddress: string = '';
+  private walletAddress: string = ''; // Kept for backward compatibility and XMR default
+  private walletAddresses: { [key: string]: string } = {}; // New property for multiple addresses
   private mnemonic: string = '';
   private sessions: number = 0;
   private lifetimeMined: number = 0;
@@ -20,6 +21,8 @@ export class WalletService {
   private readonly secretKey = process.env.WALLET_PASSWORD ?
     crypto.createHash('sha256').update(process.env.WALLET_PASSWORD).digest() :
     crypto.createHash('sha256').update(os.hostname() + 'antigravity-secret').digest();
+
+  private energyCostPerKwh: number = 1.10;
 
   constructor() {
     this.initialization();
@@ -46,6 +49,12 @@ export class WalletService {
       try {
         const data = JSON.parse(fs.readFileSync(this.walletFile, 'utf8'));
         this.walletAddress = data.address;
+        this.walletAddresses = data.addresses || {};
+
+        // Garante que o endereço padrão (XMR) vai para o mapa
+        if (!this.walletAddresses['XMR'] && this.walletAddress) {
+          this.walletAddresses['XMR'] = this.walletAddress;
+        }
 
         // Suporte a migração: Se existir mnemonic_encrypted, usa ele. Se não, tenta converter o antigo.
         if (data.mnemonic_encrypted) {
@@ -66,6 +75,7 @@ export class WalletService {
         this.baselineMined = this.lifetimeMined;
         this.baselineCost = this.lifetimeCost;
         this.baselineXMR = this.lifetimeXMR;
+        this.energyCostPerKwh = data.energyCostPerKwh !== undefined ? data.energyCostPerKwh : 1.10;
       } catch (e) {
         console.error("⚠️ Erro ao ler arquivo da carteira.");
       }
@@ -105,8 +115,10 @@ export class WalletService {
     const encryptedMnemonic = this.encrypt(this.mnemonic);
     const data = {
       address: this.walletAddress,
+      addresses: this.walletAddresses,
       mnemonic_encrypted: encryptedMnemonic, // Agora guardamos apenas a versão encriptada
       sessions: this.sessions,
+      energyCostPerKwh: this.energyCostPerKwh,
       lifetimeMined: this.lifetimeMined,
       lifetimeCost: this.lifetimeCost,
       lifetimeXMR: this.lifetimeXMR,
@@ -124,9 +136,19 @@ export class WalletService {
     this.mnemonic = "seed-frase-simulada-para-festa-exemplo-minerador-antigravity";
   }
 
-  public getWalletInfo() {
+  public getAddressForCoin(symbol: string): string {
+    return this.walletAddresses[symbol] || this.walletAddress;
+  }
+
+  public setAddressForCoin(symbol: string, address: string): void {
+    this.walletAddresses[symbol] = address;
+    if (symbol === 'XMR') this.walletAddress = address;
+    this.saveWallet();
+  }
+
+  public getWalletInfo(symbol: string = 'XMR') {
     return {
-      address: this.walletAddress,
+      address: this.getAddressForCoin(symbol),
       // Ocultamos a mnemônica por segurança em logs e TUI se necessário, mas mantemos para uso interno
       mnemonic: this.mnemonic === "ERRO_DESCRIPTOGRAFIA_SENHA_INCORRETA" ? "[PROTEGIDO: ERRO DE SENHA]" : "[PROTEGIDO: ENCRIPTADO]",
       sessions: this.sessions,
@@ -135,7 +157,8 @@ export class WalletService {
       lifetimeXMR: this.lifetimeXMR,
       initialMined: this.baselineMined,
       initialCost: this.baselineCost,
-      initialXMR: this.baselineXMR
+      initialXMR: this.baselineXMR,
+      energyCost: this.energyCostPerKwh
     };
   }
 

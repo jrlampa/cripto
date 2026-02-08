@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 export class ProfitabilityService {
-  private readonly KWH_PRICE_BRL = 1.10;
-  private readonly MIN_PAYOUT = 0.1;
+  private readonly MIN_PAYOUT = 1.0;
 
   // Cache de estatísticas da rede
   private networkDifficulty: number = 0;
@@ -37,10 +36,13 @@ export class ProfitabilityService {
     }
   }
 
+  private currentPriceBRL: number = 0;
+
   /**
    * Atualiza as métricas financeiras baseadas na carga atual do sistema
    */
-  public update(cpuLoad: number, gpuLoad: number, totalHashrate: number, xmrPriceBRL: number, deltaMs: number): void {
+  public update(cpuLoad: number, gpuLoad: number, totalHashrate: number, xmrPriceBRL: number, deltaMs: number, kwhPrice: number = 1.10): void {
+    this.currentPriceBRL = xmrPriceBRL;
     const hours = deltaMs / (1000 * 3600);
     const seconds = deltaMs / 1000;
 
@@ -48,29 +50,37 @@ export class ProfitabilityService {
     const gpuWatts = 10 + (gpuLoad / 100) * 60;
     const totalWatts = cpuWatts + gpuWatts;
 
-    const cost = (totalWatts / 1000) * hours * this.KWH_PRICE_BRL;
+    const cost = (totalWatts / 1000) * hours * kwhPrice;
     this.accumulatedCostBRL += cost;
 
-    let xmrGained = 0;
-    if (this.networkDifficulty > 0 && this.blockReward > 0) {
-      // Fórmula real: Ganhos = (Hashrate / Dificuldade) * BlockReward * Segundos
-      xmrGained = (totalHashrate / this.networkDifficulty) * this.blockReward * seconds;
-    } else {
-      xmrGained = totalHashrate * this.RECOVERY_FACTOR * hours * 1000;
-    }
-
-    this.accumulatedXMR += xmrGained;
-
-    this.currentXMRms = xmrGained / deltaMs;
-    this.smoothedRate = (this.smoothedRate * 0.9) + (this.currentXMRms * 0.1);
-
-    const revenue = xmrGained * xmrPriceBRL;
-    this.accumulatedRevenueBRL += revenue;
+    // XMR accumulation is now handled by addShare method
+    // The revenue calculation here will be based on the accumulated XMR * price,
+    // but the instruction implies removing the xmrGained calculation from here.
+    // For now, we'll remove the xmrGained and related revenue calculation from here,
+    // as the accumulatedXMR will be updated by addShare.
+    // The getFinanceReport will use the accumulatedXMR.
 
     // Atualiza estatísticas da rede a cada 10 minutos se necessário
     if (Date.now() - this.lastNetworkUpdate > 600000) {
       this.fetchNetworkStats();
     }
+  }
+
+  /**
+   * Adiciona recompensa baseada em um Share válido aceito pelo Pool.
+   * Modelo PPS (Pay Per Share) simplificado para estimativa realista.
+   */
+  public addShare(shareDifficulty: number): void {
+    if (this.networkDifficulty === 0) return;
+
+    // Fórmula: (Dificuldade do Share / Dificuldade da Rede) * Recompensa do Bloco
+    const shareValueXMR = (shareDifficulty / this.networkDifficulty) * this.blockReward;
+
+    // Deduz taxa do pool (ex: 1%)
+    const fee = shareValueXMR * 0.01;
+    const netShareValue = shareValueXMR - fee;
+
+    this.accumulatedXMR += netShareValue;
   }
 
   private calculateETA(targetXMR: number, currentXMR: number): string {
@@ -93,16 +103,14 @@ export class ProfitabilityService {
   }
 
   public getFinanceReport(lifetimeXMR: number = 0) {
-    const progress = (lifetimeXMR / this.MIN_PAYOUT) * 100;
     return {
       cost: this.accumulatedCostBRL,
-      revenue: this.accumulatedRevenueBRL,
-      profit: this.accumulatedRevenueBRL - this.accumulatedCostBRL,
+      revenue: this.accumulatedXMR * this.currentPriceBRL,
+      profit: (this.accumulatedXMR * this.currentPriceBRL) - this.accumulatedCostBRL,
       xmr: this.accumulatedXMR,
-      minPayout: this.MIN_PAYOUT,
-      payoutProgress: Math.min(100, progress),
       etaPayout: this.calculateETA(this.MIN_PAYOUT, lifetimeXMR),
-      eta1XMR: this.calculateETA(1.0, lifetimeXMR)
+      eta1XMR: this.calculateETA(1.0, lifetimeXMR),
+      minPayout: this.MIN_PAYOUT
     };
   }
 }

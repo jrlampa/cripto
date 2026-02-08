@@ -1,12 +1,16 @@
 {
-  "address": "4c7df6e689c57a1a83df7bb9412bbe7bc67d471a018df0895d7b08e4118e8ad76",
-  "mnemonic_encrypted": {
-    "iv": "a1e73b336666cdd7e618b45ae89eab6a",
-    "content": "ac0c7e483683e263989c2d27744737219de0df3fcd0861058455cb3429c2897d599fd04f281fbf357b39e30fb2031ff753b111f3eec580655da3f50514d96b16263ca599a89428031d7291fdfd063e1b751efe0dbbce47fce1ddd18b70066c5b848e449af1f12c7fe9955a5fb0f0aedd"
+  "address": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV",
+  "addresses": {
+    "XMR": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV"
   },
-  "sessions": 6,
-  "lifetimeMined": 0.0015972538945666671,
-  "lifetimeCost": 0.0030627120638888894,
-  "lifetimeXMR": 9.35971388888889e-7,
-  "lastUpdated": "2026-02-08T04:24:54.009Z"
+  "mnemonic_encrypted": {
+    "iv": "4f554e12493a5ccaa0f1842305f42173",
+    "content": "49a8c5d69a8d247624a163f3324199ea7b7c1f2333593824523935dff0ed5105a080c9062bf643250de9dc229f8b41473f74f98a3863a2887cde031317a59718a44833ced7e73700865bfa4567ae47e73f35a2b87ad7b79642232a26939fd7158e48caf7895fe9de3490ce11d6c6a774"
+  },
+  "sessions": 8,
+  "energyCostPerKwh": 1.1,
+  "lifetimeMined": 0,
+  "lifetimeCost": 0.18376005573749948,
+  "lifetimeXMR": 0,
+  "lastUpdated": "2026-02-08T14:56:44.214Z"
 }

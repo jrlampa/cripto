@@ -15,15 +15,15 @@ parentPort?.on('message', (msg) => {
     if (currentJob.seed_hash && currentJob.seed_hash !== currentSeedHash) {
       currentSeedHash = currentJob.seed_hash;
       try {
-        console.log(`[Worker ${workerData.id}] Inicializando RandomX com Seed: ${currentSeedHash.substring(0, 8)}...`);
+        parentPort?.postMessage({ type: 'log', message: `Inicializando RandomX com Seed: ${currentSeedHash.substring(0, 8)}...` });
         // Inicializa cache no modo Light (256MB)
         // CRÍTICO: Converter hex string para Buffer para garantir a chave correta
         const seedBuffer = Buffer.from(currentSeedHash, 'hex');
         rxCache = randomx_init_cache(seedBuffer);
         rxVM = randomx_create_vm(rxCache);
-        console.log(`[Worker ${workerData.id}] RandomX (WASM) inicializado com sucesso!`);
+        parentPort?.postMessage({ type: 'log', message: `RandomX (WASM) inicializado com sucesso!` });
       } catch (e) {
-        console.error(`[Worker ${workerData.id}] Erro ao inicializar RandomX:`, e);
+        parentPort?.postMessage({ type: 'log', message: `Erro ao inicializar RandomX: ${e}` });
       }
     }
   } else if (msg.type === 'pause') {
@@ -95,18 +95,32 @@ function mine() {
 function checkDifficulty(hash: Uint8Array, targetHex: string): boolean {
   if (!targetHex) return false;
 
-  // Converte target para Buffer para comparação
-  const target = Buffer.from(targetHex, 'hex');
-  // RandomX output é Little-Endian. Target (stratum) geralmente é Big-Endian (ex: 0000...)
-  // Portanto, revertemos o hash para comparar numericamente com o target.
-  const hashRev = Buffer.from(hash).reverse();
+  try {
+    // 1. Converter Hash (Little-Endian do RandomX) para BigInt (Big-Endian)
+    const hashHex = Buffer.from(hash).reverse().toString('hex');
+    const hashVal = BigInt('0x' + hashHex);
 
-  // Comparação simples de bytes (big-endian após reversão)
-  for (let i = 0; i < 32; i++) {
-    if (hash[31 - i]! < target[31 - i]!) return true;
-    if (hash[31 - i]! > target[31 - i]!) return false;
+    // 2. Ajustar Target da Pool
+    // O target (ex: "f3220000") é Little-Endian. Precisamos reverter para Big-Endian para comparação numérica correta.
+    // "f3220000" LE -> "000022f3" BE. Isso força o Hash a ser pequeno (iniciar com zeros).
+    const targetRev = Buffer.from(targetHex, 'hex').reverse().toString('hex');
+
+    // Expandir para 32 bytes. 'f' padding é o "teto" da dificuldade (safety margin).
+    const paddedTarget = targetRev.padEnd(64, 'f');
+    const targetVal = BigInt('0x' + paddedTarget);
+
+    // Debug periódico (1% das vezes)
+    if (Math.random() < 0.01) {
+      const msg = `[DiffCheck] Hash:${hashHex.substring(0, 8)}.. < Tgt:${paddedTarget.substring(0, 8)}.. = ${hashVal < targetVal}`;
+      parentPort?.postMessage({ type: 'log', message: msg });
+    }
+
+    // 3. Comparação: Para um share ser válido, Hash < Target
+    return hashVal < targetVal;
+  } catch (e) {
+    parentPort?.postMessage({ type: 'log', message: `Erro no checkDifficulty: ${e}` });
+    return false;
   }
-  return true;
 }
 
 mine();

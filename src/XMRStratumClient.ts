@@ -63,6 +63,12 @@ export class XMRStratumClient extends EventEmitter {
   }
 
   private handleMessage(json: any): void {
+    // Debug: Log raw response from pool for user verification
+    if (json.id || json.result || json.error) {
+      const logStr = `[POOL RAW] ID: ${json.id}, Result: ${JSON.stringify(json.result)}, Error: ${JSON.stringify(json.error)}`;
+      console.log(logStr.length > 200 ? logStr.substring(0, 200) + '...' : logStr);
+    }
+
     // Protocolo Monero Stratum (JSON-RPC 2.0 ou similar)
     if (json.method === 'job') {
       this.emit('job', json.params);
@@ -72,7 +78,7 @@ export class XMRStratumClient extends EventEmitter {
       this.emit('login_success', json.result);
     } else if (json.method === 'mining.set_difficulty') {
       this.emit('difficulty', json.params[0]);
-    } else if (json.result && (json.result === true || json.result.status === 'OK' || json.result === 'OK')) {
+    } else if (json.result && (json.result.status === 'OK' || json.result === 'OK')) {
       // Resposta de sucesso a um submit
       this.emit('share_accepted', json);
     } else if (json.error) {
