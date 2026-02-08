@@ -93,7 +93,8 @@ setInterval(() => {
     pool: POOL_HOST,
     poolConnected: true,
     shares: engineStats.shares,
-    difficulty: engineStats.difficulty
+    difficulty: engineStats.difficulty,
+    isPaused: engine.isEnginePaused()
   });
 
   tui.updateWallet({
@@ -154,4 +155,8 @@ function handleExit() {
 }
 
 tui.on('exit', handleExit);
+tui.on('toggle_pause', () => engine.togglePause());
+tui.on('increase_threads', () => engine.adjustThreads(1));
+tui.on('decrease_threads', () => engine.adjustThreads(-1));
+
 process.on('SIGINT', handleExit);

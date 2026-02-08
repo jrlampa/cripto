@@ -98,6 +98,19 @@ export class TUIBoard extends EventEmitter {
       tags: true
     });
 
+    // Eventos de Teclado
+    this.screen.key(['p', 'P'], () => {
+      this.emit('toggle_pause');
+    });
+
+    this.screen.key(['+', 'kp+'], () => {
+      this.emit('increase_threads');
+    });
+
+    this.screen.key(['-', 'kp-'], () => {
+      this.emit('decrease_threads');
+    });
+
     // Progress Section (Bottom)
     this.progressBox = blessed.box({
       parent: this.screen,
@@ -154,7 +167,8 @@ export class TUIBoard extends EventEmitter {
     pool: string,
     poolConnected: boolean,
     shares?: number,
-    difficulty?: number
+    difficulty?: number,
+    isPaused?: boolean
   }): void {
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
     const h = Math.floor(uptime / 3600);
@@ -162,10 +176,14 @@ export class TUIBoard extends EventEmitter {
     const s = uptime % 60;
     const uptimeStr = `${h}h ${m}m ${s}s`;
 
+    let stateColor = info.state === 'ATIVO' ? '{green-fg}' : '{yellow-fg}';
+    if (info.isPaused) stateColor = '{red-fg}PAUSADO{/red-fg}';
+    else stateColor = `${stateColor}${info.state}{/stateColor}`;
+
     this.statsBox.content = '';
     this.statsBox.setContent(
-      `Estado: {bold}${info.state}{/bold}\n` +
-      `Threads: {bold}${info.threads}{/bold}\n` +
+      `Estado: {bold}${stateColor}{/bold}\n` +
+      `Threads: {bold}${info.threads}{/bold} (Use +/- para ajustar)\n` +
       `Conexão: ${info.poolConnected ? '{green-fg}Conectado{/green-fg}' : '{red-fg}Desconectado{/red-fg}'}\n` +
       `Pool: {cyan-fg}${info.pool}{/cyan-fg}\n\n` +
       `Shares: {yellow-fg}${info.shares || 0}{/yellow-fg}\n` +

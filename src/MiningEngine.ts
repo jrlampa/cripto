@@ -11,12 +11,17 @@ export class MiningEngine {
   private currentJob: any = null;
   private sharesFound: number = 0;
   private difficulty: number = 0;
+  private isPaused: boolean = false;
+  private manualThreads: number | null = null; // null significa "usar lógica automática"
 
   constructor(host: string, port: number, private address: string) {
     this.idleDetector = new IdleDetector();
     this.client = new XMRStratumClient(host, port);
 
-    this.idleDetector.on('change', (isIdle) => this.handleStateChange(isIdle));
+    this.idleDetector.on('change', (isIdle) => {
+      console.log(isIdle ? "🌙 Sistema ocioso." : "⚡ Sistema em uso.");
+      this.rebalanceThreads();
+    });
 
     this.client.on('connected', () => {
       this.client.login(this.address);
@@ -32,12 +37,29 @@ export class MiningEngine {
     });
   }
 
+  public togglePause(): void {
+    this.isPaused = !this.isPaused;
+    console.log(this.isPaused ? "⏸️ Mineração PAUSADA pelo usuário." : "▶️ Mineração RETOMADA pelo usuário.");
+    this.rebalanceThreads();
+  }
+
+  public isEnginePaused(): boolean {
+    return this.isPaused;
+  }
+
+  public adjustThreads(delta: number): void {
+    const current = this.manualThreads ?? (this.idleDetector.isIdle ? this.numCores : Math.max(1, Math.floor(this.numCores / 4)));
+    this.manualThreads = Math.max(1, Math.min(this.numCores, current + delta));
+    console.log(`⚙️ Ajuste manual de threads: ${this.manualThreads} cores.`);
+    this.rebalanceThreads();
+  }
+
   public isIdle(): boolean {
     return this.idleDetector.isIdle;
   }
 
   public getActiveWorkersCount(): number {
-    return this.workers.length;
+    return this.isPaused ? 0 : this.workers.length;
   }
 
   public getStats() {
@@ -52,7 +74,23 @@ export class MiningEngine {
     console.log(`🚀 Iniciando Engine Monero com ${this.numCores} núcleos.`);
     this.idleDetector.start();
     this.client.connect();
-    this.spawnWorkers(this.numCores);
+    this.rebalanceThreads();
+  }
+
+  private rebalanceThreads(): void {
+    if (this.isPaused) {
+      this.stopWorkers();
+      return;
+    }
+
+    let targetThreads = this.manualThreads;
+    if (targetThreads === null) {
+      targetThreads = this.idleDetector.isIdle ? this.numCores : Math.max(1, Math.floor(this.numCores / 4));
+    }
+
+    if (this.workers.length !== targetThreads) {
+      this.spawnWorkers(targetThreads);
+    }
   }
 
   private updateWorkersJob(): void {
@@ -85,15 +123,5 @@ export class MiningEngine {
   private stopWorkers(): void {
     this.workers.forEach(w => w.terminate());
     this.workers = [];
-  }
-
-  private handleStateChange(isIdle: boolean): void {
-    if (isIdle) {
-      console.log("🌙 Sistema ocioso. Liberando potência TOTAL!");
-      this.spawnWorkers(this.numCores);
-    } else {
-      console.log("⚡ Sistema em uso. Reduzindo carga para liberar o PC.");
-      this.spawnWorkers(Math.max(1, Math.floor(this.numCores / 4))); // Usa 25% dos cores
-    }
   }
 }
