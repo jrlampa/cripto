@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 export class WalletService {
   private lastPrice: number = 0;
@@ -15,9 +16,29 @@ export class WalletService {
   private baselineCost: number = 0;
   private baselineXMR: number = 0;
   private readonly walletFile = path.join(process.cwd(), 'wallet.json');
+  private readonly algorithm = 'aes-256-cbc';
+  private readonly secretKey = process.env.WALLET_PASSWORD ?
+    crypto.createHash('sha256').update(process.env.WALLET_PASSWORD).digest() :
+    crypto.createHash('sha256').update(os.hostname() + 'antigravity-secret').digest();
 
   constructor() {
     this.initialization();
+  }
+
+  private encrypt(text: string): { iv: string, content: string } {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(this.algorithm, this.secretKey, iv);
+    const encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
+    return {
+      iv: iv.toString('hex'),
+      content: encrypted.toString('hex')
+    };
+  }
+
+  private decrypt(hash: { iv: string, content: string }): string {
+    const decipher = crypto.createDecipheriv(this.algorithm, this.secretKey, Buffer.from(hash.iv, 'hex'));
+    const decrpyted = Buffer.concat([decipher.update(Buffer.from(hash.content, 'hex')), decipher.final()]);
+    return decrpyted.toString();
   }
 
   private initialization(): void {
@@ -25,7 +46,19 @@ export class WalletService {
       try {
         const data = JSON.parse(fs.readFileSync(this.walletFile, 'utf8'));
         this.walletAddress = data.address;
-        this.mnemonic = data.mnemonic;
+
+        // Suporte a migração: Se existir mnemonic_encrypted, usa ele. Se não, tenta converter o antigo.
+        if (data.mnemonic_encrypted) {
+          try {
+            this.mnemonic = this.decrypt(data.mnemonic_encrypted);
+          } catch (e) {
+            console.error("❌ Erro ao descriptografar mnemônica. Verifique a senha.");
+            this.mnemonic = "ERRO_DESCRIPTOGRAFIA_SENHA_INCORRETA";
+          }
+        } else {
+          this.mnemonic = data.mnemonic;
+        }
+
         this.sessions = data.sessions || 0;
         this.lifetimeMined = data.lifetimeMined || 0;
         this.lifetimeCost = data.lifetimeCost || 0;
@@ -69,9 +102,10 @@ export class WalletService {
   }
 
   private saveWallet(): void {
+    const encryptedMnemonic = this.encrypt(this.mnemonic);
     const data = {
       address: this.walletAddress,
-      mnemonic: this.mnemonic,
+      mnemonic_encrypted: encryptedMnemonic, // Agora guardamos apenas a versão encriptada
       sessions: this.sessions,
       lifetimeMined: this.lifetimeMined,
       lifetimeCost: this.lifetimeCost,
@@ -93,7 +127,8 @@ export class WalletService {
   public getWalletInfo() {
     return {
       address: this.walletAddress,
-      mnemonic: this.mnemonic,
+      // Ocultamos a mnemônica por segurança em logs e TUI se necessário, mas mantemos para uso interno
+      mnemonic: this.mnemonic === "ERRO_DESCRIPTOGRAFIA_SENHA_INCORRETA" ? "[PROTEGIDO: ERRO DE SENHA]" : "[PROTEGIDO: ENCRIPTADO]",
       sessions: this.sessions,
       lifetimeMined: this.lifetimeMined,
       lifetimeCost: this.lifetimeCost,

@@ -4,6 +4,9 @@ import { EventEmitter } from 'events';
 export class XMRStratumClient extends EventEmitter {
   private client: net.Socket;
   private id: number = 1;
+  private retryCount: number = 0;
+  private maxBackoffMs: number = 5 * 60 * 1000; // 5 minutos
+  private isConnecting: boolean = false;
 
   constructor(private host: string, private port: number) {
     super();
@@ -11,9 +14,18 @@ export class XMRStratumClient extends EventEmitter {
   }
 
   public connect(): void {
-    console.log(`🔌 Conectando à pool Monero: ${this.host}:${this.port}...`);
+    if (this.isConnecting) return;
+    this.isConnecting = true;
+
+    // Limpa listeners antigos para evitar vazamento de memória e múltiplas execuções no reconnect
+    this.client.removeAllListeners();
+
+    console.log(`🔌 Conectando à pool Monero: ${this.host}:${this.port}... (Tentativa ${this.retryCount + 1})`);
+
     this.client.connect(this.port, this.host, () => {
       console.log('✅ Conectado à pool!');
+      this.isConnecting = false;
+      this.retryCount = 0; // Reseta contador ao sucesso
       this.emit('connected');
     });
 
@@ -24,7 +36,6 @@ export class XMRStratumClient extends EventEmitter {
           const json = JSON.parse(msg);
           this.handleMessage(json);
         } catch (e) {
-          // Monero pools sometimes send multiple JSONs in one chunk or slightly malformed
           console.error('❌ Erro ao processar mensagem JSON:', msg);
         }
       });
@@ -32,13 +43,23 @@ export class XMRStratumClient extends EventEmitter {
 
     this.client.on('error', (err) => {
       console.error('❌ Erro na conexão com a pool:', err.message);
-      this.emit('error', err);
+      this.isConnecting = false;
+      this.handleReconnect();
     });
 
     this.client.on('close', () => {
       console.log('🔌 Conexão com a pool encerrada.');
+      this.isConnecting = false;
+      this.handleReconnect();
       this.emit('disconnected');
     });
+  }
+
+  private handleReconnect(): void {
+    const backoff = Math.min(this.maxBackoffMs, Math.pow(2, this.retryCount) * 5000);
+    this.retryCount++;
+    console.log(`🔄 Tentando reconectar em ${backoff / 1000}s...`);
+    setTimeout(() => this.connect(), backoff);
   }
 
   private handleMessage(json: any): void {
