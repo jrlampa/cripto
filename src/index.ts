@@ -85,7 +85,10 @@ setInterval(() => {
     brl: lastPrice.brl,
     usd: lastPrice.usd,
     energyCost: finance.cost,
-    minedValue: finance.revenue
+    minedValue: finance.revenue,
+    sessions: wallet.getWalletInfo().sessions,
+    totalMined: wallet.getWalletInfo().lifetimeMined,
+    totalCost: wallet.getWalletInfo().lifetimeCost
   });
 
   // Simulação de progresso do job
@@ -95,15 +98,18 @@ setInterval(() => {
 }, 1000);
 
 // Inicia a mineração
+wallet.incrementSession(); // Incrementa contador de sessões
 engine.start();
 updateFinance();
 initGPU();
 setInterval(updateFinance, 5 * 60 * 1000);
 
 tui.log(`Conectado à pool ${POOL_HOST}`);
-tui.log(`Carteira carregada: ${walletInfo.address.substring(0, 8)}...`);
+tui.log(`Carteira carregada: ${walletInfo.address.substring(0, 8)}... | Sessão #${wallet.getWalletInfo().sessions}`);
 
 process.on('SIGINT', () => {
   tui.log("🛑 Encerrando minerador...");
+  const finance = profitService.getFinanceReport();
+  wallet.updateLifetimeStats(finance.revenue, finance.cost); // Salva o progresso da sessão
   setTimeout(() => process.exit(), 500);
 });

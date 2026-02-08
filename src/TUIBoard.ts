@@ -75,7 +75,7 @@ export class TUIBoard {
       top: 15,
       left: 0,
       width: '100%',
-      height: 6, // Aumentado de 4 para 6
+      height: 8, // Aumentado de 6 para 8 para caber acumulado
       label: ' [ FINANCEIRO & CARTEIRA ] ',
       border: { type: 'line' },
       style: { border: { fg: 'yellow' } },
@@ -189,16 +189,24 @@ export class TUIBoard {
     brl: number,
     usd: number,
     energyCost?: number,
-    minedValue?: number
+    minedValue?: number,
+    sessions?: number,
+    totalMined?: number,
+    totalCost?: number
   }): void {
-    const profit = (info.minedValue || 0) - (info.energyCost || 0);
-    const profitColor = profit >= 0 ? '{green-fg}' : '{red-fg}';
+    const sessionProfit = (info.minedValue || 0) - (info.energyCost || 0);
+    const profitColor = sessionProfit >= 0 ? '{green-fg}' : '{red-fg}';
+
+    const lifetimeMined = (info.totalMined || 0) + (info.minedValue || 0);
+    const lifetimeCost = (info.totalCost || 0) + (info.energyCost || 0);
+    const lifetimeProfit = lifetimeMined - lifetimeCost;
+    const lifetimeColor = lifetimeProfit >= 0 ? '{green-fg}' : '{red-fg}';
 
     this.walletBox.setContent(
-      `Endereço: {cyan-fg}${info.address}{/cyan-fg}\n` +
+      `Endereço: {cyan-fg}${info.address}{/cyan-fg} | Sessões: {bold}${info.sessions || 1}{/bold}\n` +
       `Cotação:  {bold}R$ ${info.brl.toLocaleString()}{/bold} | {bold}$${info.usd.toLocaleString()}{/bold}\n` +
-      `Energia:  {red-fg}R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg}\n` +
-      `Saldo:    ${profitColor}{bold}R$ ${profit.toFixed(4)}{/bold}{/}`
+      `Sessão:   {red-fg}Luz R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg} | Saldo: ${profitColor}R$ ${sessionProfit.toFixed(4)}{/}\n` +
+      `Total:    {red-fg}Luz R$ ${lifetimeCost.toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${lifetimeMined.toFixed(4)}{/green-fg} | Saldo: ${lifetimeColor}{bold}R$ ${lifetimeProfit.toFixed(4)}{/bold}{/}`
     );
     this.render();
   }

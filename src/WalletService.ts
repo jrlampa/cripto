@@ -7,6 +7,9 @@ export class WalletService {
   private lastPrice: number = 0;
   private walletAddress: string = '';
   private mnemonic: string = '';
+  private sessions: number = 0;
+  private lifetimeMined: number = 0;
+  private lifetimeCost: number = 0;
   private readonly walletFile = path.join(process.cwd(), 'wallet.json');
 
   constructor() {
@@ -19,6 +22,9 @@ export class WalletService {
         const data = JSON.parse(fs.readFileSync(this.walletFile, 'utf8'));
         this.walletAddress = data.address;
         this.mnemonic = data.mnemonic;
+        this.sessions = data.sessions || 0;
+        this.lifetimeMined = data.lifetimeMined || 0;
+        this.lifetimeCost = data.lifetimeCost || 0;
         return;
       } catch (e) {
         console.error("⚠️ Erro ao ler arquivo da carteira. Gerando uma nova.");
@@ -32,7 +38,10 @@ export class WalletService {
     const data = {
       address: this.walletAddress,
       mnemonic: this.mnemonic,
-      createdAt: new Date().toISOString()
+      sessions: this.sessions,
+      lifetimeMined: this.lifetimeMined,
+      lifetimeCost: this.lifetimeCost,
+      lastUpdated: new Date().toISOString()
     };
     fs.writeFileSync(this.walletFile, JSON.stringify(data, null, 2));
   }
@@ -49,8 +58,22 @@ export class WalletService {
   public getWalletInfo() {
     return {
       address: this.walletAddress,
-      mnemonic: this.mnemonic
+      mnemonic: this.mnemonic,
+      sessions: this.sessions,
+      lifetimeMined: this.lifetimeMined,
+      lifetimeCost: this.lifetimeCost
     };
+  }
+
+  public incrementSession(): void {
+    this.sessions++;
+    this.saveWallet();
+  }
+
+  public updateLifetimeStats(mined: number, cost: number): void {
+    this.lifetimeMined += mined;
+    this.lifetimeCost += cost;
+    this.saveWallet();
   }
 
   /**
