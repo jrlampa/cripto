@@ -1,9 +1,12 @@
 {
   "address": "4c7df6e689c57a1a83df7bb9412bbe7bc67d471a018df0895d7b08e4118e8ad76",
-  "mnemonic": "laundry shy rubber miss off artist dial mule alley tackle together change power hungry trim owner",
-  "sessions": 10,
+  "mnemonic_encrypted": {
+    "iv": "d377f71173567a11048d0f885fd06cb9",
+    "content": "38820cf37d3debacdc438f5292c8844dac0836181f36895e7ae44f740a4f5f4d2746a5991beb07473be29e421f45098180f24beac9168a1a2be25265472d28f3e48451bb23a0e8df6be92f4f7d87ce2573d496de1b98cc9bdf21f02b33b6e1447fda146ef75cd4eecc9f1e164f26fc40"
+  },
+  "sessions": 12,
   "lifetimeMined": 0.7949129552072338,
-  "lifetimeCost": 0.0895039982222225,
+  "lifetimeCost": 0.09159305937222251,
   "lifetimeXMR": 0.00021148338805555538,
-  "lastUpdated": "2026-02-08T03:48:28.665Z"
+  "lastUpdated": "2026-02-08T04:00:36.551Z"
 }
