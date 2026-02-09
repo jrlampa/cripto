@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 export class IdleDetector extends EventEmitter {
   public isIdle: boolean = false;
   private checkInterval: NodeJS.Timeout | null = null;
-  private readonly IDLE_THRESHOLD_MS = 60000; // 1 minuto de ócio
+  private readonly IDLE_THRESHOLD_MS = 10000; // 10 segundos de ócio (solicitado pelo usuário)
 
   constructor() {
     super();

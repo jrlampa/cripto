@@ -13,7 +13,24 @@ export interface PoolStats {
   };
 }
 
-export class PoolService {
+export interface PoolStats {
+  balance: number;
+  unconfirmedBalance: number;
+  hashrate: number;
+  avgHashrate: {
+    h1: number;
+    h3: number;
+    h6: number;
+    h12: number;
+    h24: number;
+  };
+}
+
+export interface IPoolService {
+  fetchStats(): Promise<PoolStats | null>;
+}
+
+export class NanopoolService implements IPoolService {
   private readonly baseUrl = 'https://api.nanopool.org/v1/xmr/user';
 
   constructor(private address: string) { }
@@ -41,8 +58,17 @@ export class PoolService {
       }
       return null;
     } catch (error: any) {
-      // Silenciosamente falha ou loga erro de rede no console (será redirecionado para o TUI)
       return null;
     }
+  }
+}
+
+export class GenericPoolService implements IPoolService {
+  constructor() { }
+
+  public async fetchStats(): Promise<PoolStats | null> {
+    // Generic pools (stratum only) don't have a standardized HTTP API we can rely on easily without more config.
+    // For now, we return null so the IO layer acts accordingly (Generic info).
+    return null;
   }
 }

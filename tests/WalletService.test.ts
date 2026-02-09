@@ -9,6 +9,11 @@ vi.mock('axios');
 describe('WalletService', () => {
   const mockWalletData = {
     address: '4address123',
+    addresses: {
+      XMR: '4address123',
+      BTC: '1btc-address',
+      BNB: '0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38'
+    },
     mnemonic_encrypted: {
       iv: '0123456789abcdef0123456789abcdef',
       content: 'deadbeef'

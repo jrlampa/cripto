@@ -3,11 +3,12 @@ import * as os from 'os';
 import { EventEmitter } from 'events';
 import { IdleDetector } from './IdleDetector';
 import { XMRStratumClient } from './XMRStratumClient';
+import { BTCStratumClient } from './BTCStratumClient';
 
 export class MiningEngine extends EventEmitter {
   private workers: Worker[] = [];
   private idleDetector: IdleDetector;
-  private client: XMRStratumClient;
+  private client: XMRStratumClient | BTCStratumClient;
   private readonly numCores = os.cpus().length;
   private currentJob: any = null;
   private sharesFound: number = 0;
@@ -16,10 +17,16 @@ export class MiningEngine extends EventEmitter {
   private manualThreads: number | null = null; // null significa "usar lógica automática"
   private workerHashrates: Map<number, number> = new Map();
 
-  constructor(host: string, port: number, private address: string) {
+  constructor(host: string, port: number, private address: string, private algorithm: string = 'RandomX', private password: string = 'x') {
     super();
     this.idleDetector = new IdleDetector();
-    this.client = new XMRStratumClient(host, port);
+
+    const btcStyleAlgos = ['SHA256', 'Autolykos2', 'Octopus', 'KAWPOW'];
+    if (btcStyleAlgos.includes(this.algorithm)) {
+      this.client = new BTCStratumClient(host, port);
+    } else {
+      this.client = new XMRStratumClient(host, port);
+    }
 
     this.idleDetector.on('change', (isIdle) => {
       console.log(isIdle ? "🌙 Sistema ocioso." : "⚡ Sistema em uso.");
@@ -27,7 +34,15 @@ export class MiningEngine extends EventEmitter {
     });
 
     this.client.on('connected', () => {
-      this.client.login(this.address);
+      console.log(`✅ Conectado! Iniciando login/subscribe para ${this.algorithm}...`);
+      if (this.client instanceof BTCStratumClient) {
+        // BTC/Alt Stratum requires authorize step. Subscribe is now auto-called in connect().
+        setTimeout(() => {
+          (this.client as BTCStratumClient).authorize(this.address, this.password);
+        }, 500);
+      } else {
+        (this.client as XMRStratumClient).login(this.address, this.password);
+      }
     });
 
     this.client.on('job', (job) => {
@@ -86,7 +101,7 @@ export class MiningEngine extends EventEmitter {
   }
 
   public start(): void {
-    console.log(`🚀 Iniciando Engine Monero com ${this.numCores} núcleos.`);
+    console.log(`🚀 Iniciando Engine ${this.algorithm} com ${this.numCores} núcleos.`);
     this.idleDetector.start();
     this.client.connect();
     this.rebalanceThreads();
@@ -119,12 +134,18 @@ export class MiningEngine extends EventEmitter {
 
     for (let i = 0; i < count; i++) {
       const worker = new Worker(workerPath, {
-        workerData: { id: i }
+        workerData: { id: i, algorithm: this.algorithm }
       });
       worker.on('message', (msg) => {
         if (msg.type === 'submit') {
           this.sharesFound++;
-          this.client.submit(msg.jobId, msg.nonce, msg.result);
+          if (this.client instanceof BTCStratumClient) {
+            // BTC Stratum submit params handled in client, we just pass what worker sends
+            // The worker for SHA256 needs to send: username, jobId, extraNonce2, ntime, nonce
+            (this.client as BTCStratumClient).submit(this.address, msg.jobId, msg.extraNonce2, msg.ntime, msg.nonce);
+          } else {
+            (this.client as XMRStratumClient).submit(msg.jobId, msg.nonce, msg.result);
+          }
         } else if (msg.type === 'hashrate') {
           this.workerHashrates.set(i, msg.hashrate);
         } else if (msg.type === 'log') {

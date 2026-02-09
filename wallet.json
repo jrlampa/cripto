@@ -1,16 +1,28 @@
 {
   "address": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV",
   "addresses": {
-    "XMR": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV"
+    "XMR": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV",
+    "BTC": "poolHANDAL.001",
+    "ERGO": "9585584bcc0056bce34c5cfdc827e1ecfc69edea3",
+    "CFX": "cfx:ac56b85fb71b8cbd720161715509c1aa2d50e8e027",
+    "RVN": "R776023c985c753d7a5900bd29f857e6c3",
+    "ZEPH": "ZEPH65a6e3a79adaaaf7d1798c894759d82eb00bddb1",
+    "BNB": "0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38",
+    "SOL": "69hDTBTfsGZpHLZoJZhdzmBpziPMGCHaX9Rn2LmJSxuR",
+    "ETH": "0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38"
+  },
+  "passwords": {
+    "BTC": "123456",
+    "XMR": "jonatas.lampa@gmail.com"
   },
   "mnemonic_encrypted": {
-    "iv": "4f554e12493a5ccaa0f1842305f42173",
-    "content": "49a8c5d69a8d247624a163f3324199ea7b7c1f2333593824523935dff0ed5105a080c9062bf643250de9dc229f8b41473f74f98a3863a2887cde031317a59718a44833ced7e73700865bfa4567ae47e73f35a2b87ad7b79642232a26939fd7158e48caf7895fe9de3490ce11d6c6a774"
+    "iv": "44b7631a5d7fcdc0f361d38ddbae9478",
+    "content": "eeb23a998f83a47c1f89e7dc6b444749ece0b52d1f90e79c514edf2558cf4dc3cce44d9a3cfadcafe0793db328da2413076f7a6a424bf946764be2b9e5864943d85c377361b5ce5b21a6a9501334949e83c8e87d34084b35d2c97b1cb8dac9724e3325b46f3313f8449235bde52585bb"
   },
-  "sessions": 8,
+  "sessions": 58,
   "energyCostPerKwh": 1.1,
   "lifetimeMined": 0,
-  "lifetimeCost": 0.18376005573749948,
+  "lifetimeCost": 1.8202872976443134,
   "lifetimeXMR": 0,
-  "lastUpdated": "2026-02-08T14:56:44.214Z"
+  "lastUpdated": "2026-02-09T14:49:00.484Z"
 }

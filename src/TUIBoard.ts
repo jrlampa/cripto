@@ -12,7 +12,7 @@ export class TUIBoard extends EventEmitter {
   private poolBox: any;
   private progressBox: any;
 
-  constructor(coinName: string, algorithm: string) {
+  constructor(private coinName: string, private coinSymbol: string, private algorithm: string) {
     super();
     this.screen = blessed.screen({
       smartCSR: true,
@@ -94,14 +94,14 @@ export class TUIBoard extends EventEmitter {
       tags: true
     });
 
-    // Pool Section (NEW)
+    // Pool Section (NEW) - Increased height for Watcher Link
     this.poolBox = blessed.box({
       parent: this.screen,
       top: 21,
       left: 0,
       width: '100%',
-      height: 5,
-      label: ' [ ESTATISTICAS DA POOL (NANOPOOL) ] ',
+      height: 8, // Increased from 5 to 8
+      label: ' [ ESTATISTICAS DA POOL ] ',
       border: { type: 'line' },
       style: { border: { fg: 'blue' } },
       tags: true
@@ -136,7 +136,7 @@ export class TUIBoard extends EventEmitter {
     // Log Section (Bottom)
     this.logBox = blessed.log({
       parent: this.screen,
-      top: 26,
+      top: 29, // Adjusted top because poolBox grew (+3)
       bottom: 3,
       label: ' [ LOGS DE REDE / EVENTOS ] ',
       border: { type: 'line' },
@@ -167,6 +167,7 @@ export class TUIBoard extends EventEmitter {
   }
 
   private startTime: number = Date.now();
+  private currentPoolName: string = 'Nanopool';
 
   public updateStats(info: {
     state: string,
@@ -193,7 +194,7 @@ export class TUIBoard extends EventEmitter {
       `Threads: {bold}${info.threads}{/bold} (Use +/- para ajustar)\n` +
       `Conexão: ${info.poolConnected ? '{green-fg}Conectado{/green-fg}' : '{red-fg}Desconectado{/red-fg}'}\n` +
       `Pool: {cyan-fg}${info.pool}{/cyan-fg}\n\n` +
-      `Hashrate CPU (RandomX): {yellow-fg}${info.hashrate?.toFixed(2) || '0.00'}{/yellow-fg} H/s\n` +
+      `Hashrate CPU (${this.algorithm}): {yellow-fg}${info.hashrate?.toFixed(2) || '0.00'}{/yellow-fg} H/s\n` +
       `Shares: {yellow-fg}${info.shares || 0}{/yellow-fg}\n` +
       `Diff:   {blue-fg}${info.difficulty || 'N/A'}{/blue-fg}\n` +
       `Uptime: {bold}${uptimeStr}{/bold}`
@@ -218,7 +219,7 @@ export class TUIBoard extends EventEmitter {
 
     const gpuStatus = data.isSimulated
       ? '(SIMULADO)'
-      : '(RandomX = CPU Only)';
+      : `(${this.algorithm} = CPU Only)`;
 
     this.gpuBox.setContent(
       `Modelo: ${data.model} {grey-fg}${gpuStatus}{/grey-fg}\n` +
@@ -264,22 +265,38 @@ export class TUIBoard extends EventEmitter {
 
     this.walletBox.setContent(
       `Endereço: {cyan-fg}${addrDisplay}{/cyan-fg} | Sessões: {bold}${info.sessions || 1}{/bold}\n` +
-      `XMR Total: {bold}${lifetimeXMR.toFixed(8)} XMR{/bold} (R$ ${(lifetimeXMR * info.brl).toFixed(4)}) | Meta: {bold}${payoutMeta} XMR{/bold} (R$ ${(payoutMeta * info.brl).toFixed(2)})\n` +
+      `Total: {bold}${lifetimeXMR.toFixed(8)} ${this.coinSymbol}{/bold} (R$ ${(lifetimeXMR * info.brl).toFixed(4)}) | Meta: {bold}${payoutMeta} ${this.coinSymbol}{/bold} (R$ ${(payoutMeta * info.brl).toFixed(2)})\n` +
       `Progresso: ${progressColor}[${'█'.repeat(Math.floor(Math.min(100, progress) / 5))}${'░'.repeat(20 - Math.floor(Math.min(100, progress) / 5))}] ${Math.min(100, progress).toFixed(2)}%{/}\n` +
-      `ETA Payout: {bold}${info.etaPayout || '---'}{/bold} | ETA 1.0 XMR: {bold}${info.eta1XMR || '---'}{/bold}\n` +
+      `ETA Payout: {bold}${info.etaPayout || '---'}{/bold} | ETA 1.0 ${this.coinSymbol}: {bold}${info.eta1XMR || '---'}{/bold}\n` +
       `Sessão:   {red-fg}Luz R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} {grey-fg}(${(info.kwhPrice || 1.10).toFixed(2)}/kWh){/grey-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg} | Saldo: ${profitColor}R$ ${sessionProfit.toFixed(4)}{/}\n` +
       `Total:    custo energia total: {red-fg}R$ ${lifetimeCost.toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${lifetimeMined.toFixed(4)}{/green-fg} | Saldo: ${lifetimeColor}{bold}R$ ${lifetimeProfit.toFixed(4)}{/bold}{/}`
     );
   }
 
+  public setPoolName(name: string): void {
+    this.currentPoolName = name;
+    this.poolBox.setLabel(` [ ESTATISTICAS DA POOL (${name}) ] `);
+  }
+
   public updatePoolStats(data: any): void {
     if (!data) {
-      this.poolBox.setContent('{red-fg}⚠️ Aguardando dados da Nanopool...{/red-fg}');
+      // Se não temos dados (ex: Pool Genérica sem API)
+      if (this.currentPoolName.includes('Generic') || this.currentPoolName.includes('Binance')) {
+        this.poolBox.setContent(
+          '{center}Pool Genérica/Customizada detectada.\n' +
+          'Dados de API não disponíveis via app.\n' +
+          'Acompanhe seus ganhos no site da Pool.{/center}\n\n' +
+          '{center}{bold}Binance Watcher:{/bold}{/center}\n' +
+          '{center}{blue-fg}pool.binance.com/pt-BR/observer-links?urlParams=...{/blue-fg}{/center}'
+        );
+      } else {
+        this.poolBox.setContent('{red-fg}⚠️ Aguardando dados da Nanopool...{/red-fg}');
+      }
       return;
     }
 
     this.poolBox.setContent(
-      `Saldo: {green-fg}${data.balance.toFixed(8)} XMR{/green-fg} | Não Confirmado: {yellow-fg}${data.unconfirmedBalance.toFixed(8)} XMR{/yellow-fg}\n` +
+      `Saldo: {green-fg}${data.balance.toFixed(8)} ${this.coinSymbol}{/green-fg} | Não Confirmado: {yellow-fg}${data.unconfirmedBalance.toFixed(8)} ${this.coinSymbol}{/yellow-fg}\n` +
       `Hashrate Pool: {bold}${data.hashrate.toFixed(2)} H/s{/bold}\n` +
       `Médias: {cyan-fg}1h: ${data.avgHashrate.h1.toFixed(2)}{/cyan-fg} | {cyan-fg}12h: ${data.avgHashrate.h12.toFixed(2)}{/cyan-fg} | {cyan-fg}24h: ${data.avgHashrate.h24.toFixed(2)}{/cyan-fg}`
     );

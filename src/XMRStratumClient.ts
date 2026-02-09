@@ -43,12 +43,12 @@ export class XMRStratumClient extends EventEmitter {
 
     this.client.on('error', (err) => {
       console.error('❌ Erro na conexão com a pool:', err.message);
-      this.isConnecting = false;
-      this.handleReconnect();
+      // Close will follow
     });
 
-    this.client.on('close', () => {
-      console.log('🔌 Conexão com a pool encerrada.');
+    this.client.on('close', (hadError) => {
+      if (this.isConnecting) return;
+      console.log(`🔌 Conexão com a pool encerrada${hadError ? ' por erro' : ''}.`);
       this.isConnecting = false;
       this.handleReconnect();
       this.emit('disconnected');
@@ -71,9 +71,25 @@ export class XMRStratumClient extends EventEmitter {
 
     // Protocolo Monero Stratum (JSON-RPC 2.0 ou similar)
     if (json.method === 'job') {
+      console.log(`📦 Novo Job XMR recebido: ${json.params.job_id?.substring(0, 8) || '---'}`);
+
+      // FIX: Calculate difficulty from target if available
+      if (json.params.target) {
+        const diff = this.calculateDifficultyFromTarget(json.params.target);
+        if (diff > 0) this.emit('difficulty', diff);
+      }
+
       this.emit('job', json.params);
     } else if (json.result && json.result.job) {
       // Resposta ao login geralmente contém o primeiro job
+      console.log(`📦 Novo Job XMR recebido (Login): ${json.result.job.job_id?.substring(0, 8) || '---'}`);
+
+      // FIX: Calculate difficulty from target if available
+      if (json.result.job.target) {
+        const diff = this.calculateDifficultyFromTarget(json.result.job.target);
+        if (diff > 0) this.emit('difficulty', diff);
+      }
+
       this.emit('job', json.result.job);
       this.emit('login_success', json.result);
     } else if (json.method === 'mining.set_difficulty') {
@@ -89,6 +105,7 @@ export class XMRStratumClient extends EventEmitter {
   }
 
   public login(address: string, password: string = 'x'): void {
+    console.log(`🔑 Autenticando com Worker/Email: ${password}`);
     const request = {
       id: this.id++,
       method: 'login',
@@ -122,5 +139,29 @@ export class XMRStratumClient extends EventEmitter {
       params: { id: this.id }
     };
     this.client.write(JSON.stringify(request) + '\n');
+  }
+
+  private calculateDifficultyFromTarget(targetHex: string): number {
+    try {
+      // Monero Difficulty = (2^256 - 1) / Target
+      // Target is Little-Endian 32-bit (or 64-bit hex) usually.
+      // Example: "000022f3..." means high difficulty (small number).
+      // If target is 32-bit (8 hex chars), it might be "f3220000".
+
+      // Standard Monero Stratum uses a 32-bit integer target sometimes, or a full 256-bit target.
+      // Nanopool typically sends a 32-bit target (e.g., 8769324) or a hex string.
+
+      // Let's assume standard Hex Target (Little Endian)
+      const targetRev = Buffer.from(targetHex, 'hex').reverse().toString('hex');
+      const targetVal = BigInt('0x' + targetRev.padEnd(64, 'f'));
+
+      const MAX_TARGET = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF');
+      const diff = MAX_TARGET / targetVal;
+
+      return Number(diff);
+    } catch (e) {
+      console.error('⚠️ Erro ao calcular dificuldade do target:', e);
+      return 0;
+    }
   }
 }

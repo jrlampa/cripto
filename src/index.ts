@@ -3,7 +3,7 @@ import { WalletService } from './WalletService';
 import { TUIBoard } from './TUIBoard';
 import { GPUDetector } from './GPUDetector';
 import { ProfitabilityService } from './ProfitabilityService';
-import { PoolService } from './PoolService';
+import { NanopoolService, GenericPoolService, IPoolService } from './PoolService';
 import { MainMenuTUI } from './MainMenuTUI';
 
 async function bootstrap() {
@@ -14,66 +14,119 @@ async function bootstrap() {
   // 2. Address Management: Ensure we have a valid address for the selected coin
   // We do this BEFORE initializing the TUIBoard to ensure readline prompt works on standard stdout
   const wallet = new WalletService();
+  // FORCE REFRESH: Get specific wallet info for the selected coin
   let walletInfo = wallet.getWalletInfo(coinConfig.symbol);
 
+  // SMART FIX: Detect double paste on stored value too (fixes carry-over issues)
+  if (walletInfo.address.length >= 20 && walletInfo.address.length % 2 === 0) {
+    const half = walletInfo.address.length / 2;
+    if (walletInfo.address.substring(0, half) === walletInfo.address.substring(half)) {
+      walletInfo.address = walletInfo.address.substring(0, half);
+    }
+  }
+
   // Simple validation heuristics
-  // XMR: starts with 4 or 8. ZEPH: starts with ZEPH. 
   let isAddressValid = false;
   const len = walletInfo.address.length;
-  // Standard XMR/ZEPH addresses are ~95 chars. Integrated ~106.
   const isValidLength = len >= 90 && len <= 110;
 
-  if (coinConfig.symbol === 'XMR' && /^[48]/.test(walletInfo.address) && isValidLength) isAddressValid = true;
-  if (coinConfig.symbol === 'ZEPH' && /^ZEPH/.test(walletInfo.address) && isValidLength) isAddressValid = true;
-  // Others: Assume valid if not empty and not default XMR mock if symbol != XMR
-  if (!['XMR', 'ZEPH'].includes(coinConfig.symbol) && isValidLength) isAddressValid = true;
+  // DEBUG LOGS (Temporário)
+  // console.log(`[DEBUG] Coin: ${coinConfig.symbol}, Address Len: ${len}, IsValidLen: ${isValidLength}`);
 
-  if (!isAddressValid || walletInfo.address === "") {
-    console.log(`\n⚠️  Endereço de carteira para ${coinConfig.name} (${coinConfig.symbol}) não encontrado ou inválido.`);
-    if (walletInfo.address) console.log(`   Endereço atual (inválido): ${walletInfo.address.substring(0, 20)}...`);
+  if (coinConfig.symbol === 'XMR') {
+    isAddressValid = /^[48]/.test(walletInfo.address) && isValidLength;
+  } else if (coinConfig.symbol === 'ZEPH') {
+    isAddressValid = /^ZEPH/.test(walletInfo.address) && isValidLength;
+  } else if (coinConfig.symbol === 'BTC') {
+    const looksLikeXMR = (walletInfo.address.startsWith('4') || walletInfo.address.startsWith('8')) && walletInfo.address.length > 90;
+    if (walletInfo.address.length > 3 && walletInfo.address.length < 60 && !looksLikeXMR) {
+      isAddressValid = true;
+    } else {
+      isAddressValid = false;
+      walletInfo.address = "";
+    }
+  } else if (coinConfig.symbol === 'RVN') {
+    isAddressValid = /^R/.test(walletInfo.address) && walletInfo.address.length >= 30;
+  } else if (coinConfig.symbol === 'CFX') {
+    isAddressValid = /^cfx:/.test(walletInfo.address) || walletInfo.address.length > 30;
+  } else if (coinConfig.symbol === 'ERGO') {
+    isAddressValid = /^9/.test(walletInfo.address) && walletInfo.address.length >= 30;
+  } else if (coinConfig.symbol === 'BNB' || coinConfig.symbol === 'ETH') {
+    isAddressValid = /^0x[a-fA-F0-9]{40}$/.test(walletInfo.address);
+  } else if (coinConfig.symbol === 'SOL') {
+    isAddressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(walletInfo.address);
+  } else {
+    isAddressValid = walletInfo.address.length > 5;
+  }
+
+  // Debug Final
+  // console.log(`[DEBUG] Result isAddressValid: ${isAddressValid}`);
+
+  // Se o usuário digitou senha no menu, usa ela. Senão, tenta carregar do wallet.
+  let walletPassword = (coinConfig as any).password || wallet.getPasswordForCoin(coinConfig.symbol);
+
+  const isBTC = coinConfig.algorithm === 'SHA256';
+  const label = isBTC ? 'Nome do Worker (ex: user.001)' : 'Endereço de carteira';
+
+  if (!isAddressValid || walletInfo.address === "" || (isBTC && !walletPassword)) {
+    console.log(`\n⚠️  Configuração para ${coinConfig.name} (${coinConfig.symbol}) incompleta.`);
+    if (walletInfo.address) console.log(`   Valor atual (Address/Worker): ${walletInfo.address.substring(0, 20)}...`);
 
     const readline = require('readline').createInterface({
       input: process.stdin,
       output: process.stdout
     });
 
-    await new Promise<void>((resolve) => {
-      const ask = () => {
-        readline.question(`👉 Por favor, cole seu endereço ${coinConfig.symbol} (Cole APENAS UMA VEZ): `, (addr: string) => {
-          let cleanAddr = addr.trim();
+    // Função auxiliar para perguntar
+    const question = (q: string): Promise<string> => {
+      return new Promise(resolve => readline.question(q, resolve));
+    }
 
-          // SMART FIX: Detect double paste (e.g. "46...MV46...MV")
-          if (cleanAddr.length >= 180 && cleanAddr.length % 2 === 0) {
-            const half = cleanAddr.length / 2;
-            const firstHalf = cleanAddr.substring(0, half);
-            const secondHalf = cleanAddr.substring(half);
-            if (firstHalf === secondHalf) {
-              console.log("⚠️ Detectada colagem dupla! Corrigindo automaticamente...");
-              cleanAddr = firstHalf;
-            }
-          }
+    // Loop de pergunta do Address/Worker
+    while (!isAddressValid) {
+      let addr = await question(`👉 Por favor, digite seu ${label} (APENAS UMA VEZ): `);
+      let cleanAddr = addr.trim();
 
-          // Validation: Address should be roughly 95 or 106 chars
-          if (cleanAddr.length >= 90 && cleanAddr.length <= 110) {
-            wallet.setAddressForCoin(coinConfig.symbol, cleanAddr);
-            console.log(`✅ Endereço salvo! Iniciando minerador...`);
-            walletInfo = wallet.getWalletInfo(coinConfig.symbol);
-            readline.close();
-            resolve();
-          } else {
-            console.log(`❌ Endereço inválido (Tamanho: ${cleanAddr.length}). Padrão esperado: ~95 chars.`);
-            console.log(`   Tente novamente.`);
-            ask(); // Loop until valid
-          }
-        });
-      };
-      console.log("💡 Dica: Para colar no Windows, clique com botão direito ou use Ctrl+Shift+V / Ctrl+V.");
-      ask();
-    });
+      // SMART FIX: Detect double paste (now more aggressive for shorter worker names)
+      if (cleanAddr.length >= 20 && cleanAddr.length % 2 === 0) {
+        const half = cleanAddr.length / 2;
+        if (cleanAddr.substring(0, half) === cleanAddr.substring(half)) {
+          console.log("⚠️ Detectada colagem dupla! Corrigindo automaticamente...");
+          cleanAddr = cleanAddr.substring(0, half);
+        }
+      }
+
+      let valid = false;
+      if (isBTC) valid = cleanAddr.length > 3;
+      else valid = cleanAddr.length >= 90 && cleanAddr.length <= 110;
+
+      if (valid) {
+        walletInfo.address = cleanAddr;
+        isAddressValid = true;
+        console.log(`✅ ${label} válido!`);
+      } else {
+        console.log(`❌ Valor inválido (Tamanho: ${cleanAddr.length}). Tente novamente.`);
+      }
+    }
+
+    // Pergunta da Senha (Apenas BTC)
+    if (isBTC && !walletPassword) {
+      let pass = await question(`👉 Digite a senha para o worker (ou Enter para '123456'): `);
+      walletPassword = pass.trim() || '123456';
+    }
+
+    // Salvar tudo
+    wallet.setAddressForCoin(coinConfig.symbol, walletInfo.address, walletPassword);
+    console.log(`✅ Configuração salva! Iniciando minerador...`);
+
+    readline.close();
+  } else if ((coinConfig as any).password && (coinConfig as any).password !== 'x') {
+    // Caso o endereço já fosse válido mas a senha mudou (via menu), atualizamos o wallet.json
+    wallet.setAddressForCoin(coinConfig.symbol, walletInfo.address, walletPassword);
   }
 
   // 3. Initialize Main Dashboard
-  const tui = new TUIBoard(coinConfig.name, coinConfig.algorithm);
+  const tui = new TUIBoard(coinConfig.name, coinConfig.symbol, coinConfig.algorithm);
 
   // Redireciona logs IMEDIATAMENTE para o TUI para manter a tela limpa
   const originalLog = console.log;
@@ -90,10 +143,19 @@ async function bootstrap() {
     process.stdin.resume();
   }
 
-  const engine = new MiningEngine(POOL_HOST, POOL_PORT, walletInfo.address);
+  const engine = new MiningEngine(POOL_HOST, POOL_PORT, walletInfo.address, coinConfig.algorithm, walletPassword);
   const gpuDetector = new GPUDetector();
   const profitService = new ProfitabilityService();
-  const poolService = new PoolService(walletInfo.address);
+
+  // Select Pool Service Strategy
+  let poolService: IPoolService;
+  if (POOL_HOST.includes('nanopool.org')) {
+    poolService = new NanopoolService(walletInfo.address);
+    tui.setPoolName("Nanopool API");
+  } else {
+    poolService = new GenericPoolService();
+    tui.setPoolName(`Generic/Custom (${POOL_HOST})`);
+  }
 
   let gpuModel = "Buscando...";
   let lastPrice = { brl: 0, usd: 0 };
@@ -105,14 +167,8 @@ async function bootstrap() {
   async function updateFinance() {
     // TODO: Passar o ID da moeda (monero ou zephyr) para o fetchPrice se necessário. 
     // Por simplicidade do MVP, mantemos monero, mas idealmente CoinConfig teria o ID do CoinGecko.
-    // CoinGecko IDs: Monero = 'monero', Zephyr = 'zephyr-protocol'
-    const coingeckoId = coinConfig.symbol === 'ZEPH' ? 'zephyr-protocol' : 'monero';
-
-    // Pequeno hack: WalletService atualmente tem 'monero' hardcoded.
-    // Vamos apenas usar o preço do XMR por enquanto se não alterarmos o WalletService, 
-    // ou assumir que o usuário entende que é uma estimativa.
-    // Para ficar "Pro", deveríamos atualizar o WalletService.fetchPrice para aceitar argumento.
-    lastPrice = await wallet.fetchPrice();
+    // Pegamos o preço da moeda atual
+    lastPrice = await wallet.fetchPrice(coinConfig.symbol);
 
     tui.updateWallet({
       address: walletInfo.address,
@@ -125,7 +181,10 @@ async function bootstrap() {
     const stats = await poolService.fetchStats();
     if (stats) {
       lastPoolStats = stats;
-      tui.log(`Pool: Dados recebidos. Saldo: ${stats.balance} ${coinConfig.symbol}`);
+      tui.log(`Pool: Dados recebidos. Saldo: ${stats.balance.toFixed(6)} ${coinConfig.symbol}`);
+    } else {
+      // If null (Generic Pool), we don't update lastPoolStats with null to avoid wiping previous data if any, 
+      // or simply leave it as is. TUI handles null.
     }
   }
 
@@ -153,11 +212,11 @@ async function bootstrap() {
     const engineStats = engine.getStats();
 
     // Atualiza Financeiro Real-time
-    const walletMeta = wallet.getWalletInfo();
+    const walletMeta = wallet.getWalletInfo(coinConfig.symbol);
     const totalHashrate = engineStats.job ? (engineStats.hashrate || 0) : 0;
 
-    // Usa o custo de energia configurado no wallet.json
-    profitService.update(cpuLoad, 0, totalHashrate, lastPrice.brl, deltaMs, walletMeta.energyCost);
+    // Usa o custo de energia configurado no wallet.json e a moeda selecionada
+    profitService.update(cpuLoad, 0, totalHashrate, lastPrice.brl, deltaMs, walletMeta.energyCost, coinConfig.symbol, engineStats.difficulty);
 
     const finance = profitService.getFinanceReport((walletMeta.initialXMR || 0) + profitService.getFinanceReport().xmr);
 
@@ -218,7 +277,7 @@ async function bootstrap() {
       initialXMR: displayBaseXMR, // Uses Pool-synced value
       minPayout: finance.minPayout,
       etaPayout: finance.etaPayout,
-      eta1XMR: finance.eta1XMR,
+      eta1XMR: finance.eta1Unit,
       kwhPrice: walletMeta.energyCost
     });
 
@@ -278,7 +337,14 @@ async function bootstrap() {
   });
 
   engine.on('share_rejected', (err) => {
-    tui.log(`❌ {red-fg}Share rejeitado:{/red-fg} ${JSON.stringify(err)}`);
+    // Categorização de erros de pool (Stratum)
+    // 17 = Incompatible protocol / Invalid job
+    // 20 = Invalid address / Authentication failed (comum na 2Miners/Nanopool)
+    if (Array.isArray(err) && (err[0] === 20 || err[0] === 17)) {
+      tui.log(`❌ {red-fg}Erro de Protocolo/Endereço (Pool):{/red-fg} ${err[1] || 'Recusado'}`);
+    } else {
+      tui.log(`❌ {red-fg}Share rejeitado:{/red-fg} ${JSON.stringify(err)}`);
+    }
   });
 
   process.on('SIGINT', handleExit);

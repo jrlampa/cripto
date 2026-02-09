@@ -25,6 +25,9 @@ describe('ProfitabilityService', () => {
     // update com hashrate simulado
     service.update(50, 0, 1000, 800, 1000); // 1000 H/s, 1 segundo
 
+    // Simula um share encontrado para gerar receita (necessário após refatoração PPS)
+    service.addShare(10000);
+
     const report = service.getFinanceReport();
     expect(report.xmr).toBeGreaterThan(0);
   });

@@ -43,21 +43,24 @@ function uint8ArrayToHex(arr: Uint8Array): string {
 
 let hashesSinceLastReport = 0;
 
-// Reporta hashrate a cada 2 segundos
-setInterval(() => {
-  if (hashesSinceLastReport > 0) {
-    parentPort?.postMessage({
-      type: 'hashrate',
-      hashrate: hashesSinceLastReport / 2
-    });
-    hashesSinceLastReport = 0;
-  }
-}, 2000);
+const algorithm = workerData.algorithm || 'RandomX';
+
+// Rate limiting logging and reporting variables
+let lastReportTime = Date.now();
+let hashesInInterval = 0;
 
 /**
  * Função principal de mineração
  */
 function mine() {
+  if (algorithm === 'SHA256') {
+    mineSHA256();
+  } else {
+    mineRandomX();
+  }
+}
+
+function mineRandomX() {
   if (!isPaused && currentJob && rxVM) {
     const blob = hexToUint8Array(currentJob.blob);
     // Gerar um nonce aleatório de 4 bytes na posição correta do blob (offset 39)
@@ -68,6 +71,27 @@ function mine() {
       // Cálculo REAL do RandomX
       const result = rxVM.calculate_hash(blob);
       hashesSinceLastReport++;
+      hashesInInterval++;
+
+      // Manual Loop Interval Check (Avoids Event Loop Starvation)
+      const now = Date.now();
+      if (now - lastReportTime >= 2000) {
+        const deltaSeconds = (now - lastReportTime) / 1000;
+        const currentHashrate = hashesInInterval / deltaSeconds;
+
+        parentPort?.postMessage({
+          type: 'hashrate',
+          hashrate: currentHashrate
+        });
+
+        lastReportTime = now;
+        hashesInInterval = 0;
+      }
+
+      // Log de atividade periódica para RandomX (XMR)
+      if (hashesSinceLastReport % 1000 === 0) {
+        parentPort?.postMessage({ type: 'log', message: `⛏️ RandomX: Calculando hashes... (${hashesSinceLastReport} total na sessão)` });
+      }
 
       const hashStr = uint8ArrayToHex(result);
 
@@ -84,8 +108,59 @@ function mine() {
       // Ignora erros temporários da VM
     }
   }
+  setImmediate(mine);
+}
 
-  // SetImmediate para não bloquear o loop de eventos
+function mineSHA256() {
+  if (!isPaused && currentJob) {
+    // SHA256 Job typically: version, prevhash, merkel_root, ntime, nbits
+    // For simulation/educational purposes on CPU (BTC mining on CPU is impossible today),
+    // we will implement a basic double-sha256 header hash.
+    // However, standard Stratum BTC jobs require constructing the block header from portions.
+    // Simplified Logic: Just hash a changing nonce.
+
+    // Construct Header (mockup for CPU simulation)
+    // In real BTC stratum: Header = Version + PrevHash + MerkleRoot + Time + NBits + Nonce
+    const nonce = crypto.randomBytes(4);
+
+    // Mock header construction (80 bytes)
+    const header = Buffer.alloc(80);
+    header.fill(0);
+    // ... fill header parts from currentJob if available ...
+    header.set(nonce, 76); // Nonce is last 4 bytes
+
+    const hash1 = crypto.createHash('sha256').update(header).digest();
+    const hash2 = crypto.createHash('sha256').update(hash1).digest();
+
+    hashesSinceLastReport++;
+    hashesInInterval++;
+
+    const now = Date.now();
+    if (now - lastReportTime >= 2000) {
+      const deltaSeconds = (now - lastReportTime) / 1000;
+      const currentHashrate = hashesInInterval / deltaSeconds;
+
+      parentPort?.postMessage({
+        type: 'hashrate',
+        hashrate: currentHashrate
+      });
+
+      lastReportTime = now;
+      hashesInInterval = 0;
+    }
+
+    // Log de atividade periódica (aproximadamente a cada 1.000.000 hashes)
+    if (hashesSinceLastReport % 1000000 === 0) {
+      parentPort?.postMessage({ type: 'log', message: `⛏️ SHA256: Procura em andamento... (${hashesSinceLastReport} total na sessão)` });
+    }
+  } else if (!isPaused) {
+    // Para algoritmos ainda não implementados 100% (ERGO, CFX, RVN),
+    // simulamos a "procura" para que o TUI mostre que está ativo.
+    hashesSinceLastReport++;
+    if (hashesSinceLastReport % 1000000 === 0) {
+      parentPort?.postMessage({ type: 'log', message: `⛏️ ${algorithm}: Simulação em andamento... (${hashesSinceLastReport} total na sessão)` });
+    }
+  }
   setImmediate(mine);
 }
 

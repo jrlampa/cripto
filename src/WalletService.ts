@@ -8,6 +8,7 @@ export class WalletService {
   private lastPrice: number = 0;
   private walletAddress: string = ''; // Kept for backward compatibility and XMR default
   private walletAddresses: { [key: string]: string } = {}; // New property for multiple addresses
+  private passwords: { [key: string]: string } = {}; // New property for pool passwords
   private mnemonic: string = '';
   private sessions: number = 0;
   private lifetimeMined: number = 0;
@@ -50,11 +51,20 @@ export class WalletService {
         const data = JSON.parse(fs.readFileSync(this.walletFile, 'utf8'));
         this.walletAddress = data.address;
         this.walletAddresses = data.addresses || {};
+        this.passwords = data.passwords || {};
 
-        // Garante que o endereço padrão (XMR) vai para o mapa
-        if (!this.walletAddresses['XMR'] && this.walletAddress) {
-          this.walletAddresses['XMR'] = this.walletAddress;
-        }
+        // Garante que o mapa tenha endereços para todas as moedas principais suportadas
+        const supportedCoins = ['XMR', 'BTC', 'ERGO', 'CFX', 'RVN', 'ZEPH', 'BNB', 'SOL', 'ETH'];
+        let needsSave = false;
+
+        supportedCoins.forEach(coin => {
+          if (!this.walletAddresses[coin]) {
+            this.walletAddresses[coin] = this.generateAddressForCoin(coin);
+            needsSave = true;
+          }
+        });
+
+        if (needsSave) this.saveWallet();
 
         // Suporte a migração: Se existir mnemonic_encrypted, usa ele. Se não, tenta converter o antigo.
         if (data.mnemonic_encrypted) {
@@ -116,6 +126,7 @@ export class WalletService {
     const data = {
       address: this.walletAddress,
       addresses: this.walletAddresses,
+      passwords: this.passwords,
       mnemonic_encrypted: encryptedMnemonic, // Agora guardamos apenas a versão encriptada
       sessions: this.sessions,
       energyCostPerKwh: this.energyCostPerKwh,
@@ -128,20 +139,66 @@ export class WalletService {
   }
 
   /**
-   * Simula a geração de uma carteira Monero (XMR)
+   * Gera um endereço simulado ou retorna o real da Binance baseado no símbolo
    */
+  private generateAddressForCoin(symbol: string): string {
+    const binanceAddresses: { [key: string]: string } = {
+      'BNB': '0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38',
+      'SOL': '69hDTBTfsGZpHLZoJZhdzmBpziPMGCHaX9Rn2LmJSxuR',
+      'ETH': '0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38'
+    };
+
+    if (binanceAddresses[symbol]) return binanceAddresses[symbol];
+
+    // Conjunto Base58 (sem 0, O, I, l) para conformidade com pools
+    const b58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    const generateB58 = (length: number) => {
+      let res = '';
+      for (let i = 0; i < length; i++) {
+        res += b58Chars.charAt(crypto.randomInt(0, b58Chars.length));
+      }
+      return res;
+    };
+
+    const randomHex = crypto.randomBytes(20).toString('hex');
+
+    switch (symbol) {
+      case 'RVN': return `R${generateB58(33)}`;
+      case 'CFX': return `cfx:ac${randomHex.substring(0, 42)}`; // Conflux usa hex prefixado
+      case 'ERGO': return `9${generateB58(50)}`;
+      case 'BTC': return `1${generateB58(33)}`;
+      case 'ZEPH': return `ZEPH${generateB58(90)}`;
+      default: return `4${generateB58(94)}`; // Monero default (Base58)
+    }
+  }
+
   private generateMockWallet(): void {
-    const randomHex = crypto.randomBytes(32).toString('hex');
-    this.walletAddress = `4${randomHex.substring(0, 94)}`;
-    this.mnemonic = "seed-frase-simulada-para-festa-exemplo-minerador-antigravity";
+    this.walletAddress = this.generateAddressForCoin('XMR');
+    this.walletAddresses['XMR'] = this.walletAddress;
+    this.walletAddresses['BTC'] = this.generateAddressForCoin('BTC');
+    this.walletAddresses['ERGO'] = this.generateAddressForCoin('ERGO');
+    this.walletAddresses['CFX'] = this.generateAddressForCoin('CFX');
+    this.walletAddresses['RVN'] = this.generateAddressForCoin('RVN');
+    this.walletAddresses['ZEPH'] = this.generateAddressForCoin('ZEPH');
+    this.walletAddresses['BNB'] = this.generateAddressForCoin('BNB');
+    this.walletAddresses['SOL'] = this.generateAddressForCoin('SOL');
+    this.walletAddresses['ETH'] = this.generateAddressForCoin('ETH');
+    this.mnemonic = "seed-frase-simulada-para-festa-exemplo-minerador-antigravity-multicoin";
   }
 
   public getAddressForCoin(symbol: string): string {
     return this.walletAddresses[symbol] || this.walletAddress;
   }
 
-  public setAddressForCoin(symbol: string, address: string): void {
+  public getPasswordForCoin(symbol: string): string {
+    return this.passwords[symbol] || 'jonatas.lampa@gmail.com';
+  }
+
+  public setAddressForCoin(symbol: string, address: string, password?: string): void {
     this.walletAddresses[symbol] = address;
+    if (password !== undefined) {
+      this.passwords[symbol] = password;
+    }
     if (symbol === 'XMR') this.walletAddress = address;
     this.saveWallet();
   }
@@ -177,25 +234,38 @@ export class WalletService {
   }
 
   /**
-   * Busca o preço do Monero via CoinGecko
+   * Busca o preço da moeda via CoinGecko
    */
-  public async fetchPrice(): Promise<{ brl: number, usd: number }> {
+  public async fetchPrice(symbol: string = 'XMR'): Promise<{ brl: number, usd: number }> {
+    const cgIds: { [key: string]: string } = {
+      'XMR': 'monero',
+      'BTC': 'bitcoin',
+      'ZEPH': 'zephyr-protocol',
+      'RVN': 'ravencoin',
+      'CFX': 'conflux-token',
+      'ERGO': 'ergo',
+      'BNB': 'binancecoin',
+      'SOL': 'solana',
+      'ETH': 'ethereum'
+    };
+    const id = cgIds[symbol] || 'monero';
+
     try {
       const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
         params: {
-          ids: 'monero',
+          ids: id,
           vs_currencies: 'brl,usd'
         }
       });
-      const data = response.data.monero;
+      const data = response.data[id];
       this.lastPrice = data.brl;
       return {
         brl: data.brl,
         usd: data.usd
       };
     } catch (error) {
-      console.error("⚠️ Erro ao buscar preço do XMR. Usando último valor conhecido.");
-      return { brl: 850, usd: 145 }; // Fallback aproximado
+      console.error(`⚠️ Erro ao buscar preço de ${symbol}. Usando último valor conhecido.`);
+      return { brl: symbol === 'BTC' ? 500000 : 850, usd: symbol === 'BTC' ? 100000 : 145 }; // Fallback
     }
   }
 }
