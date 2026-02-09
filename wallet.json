@@ -1,28 +1,28 @@
 {
-  "address": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV",
+  "address": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRi8Vbb49f89433a9e42fd808af153a045f8cb36cd98785c10a819e3ab8c746063bc",
   "addresses": {
-    "XMR": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRiSUAzSZXYya7Hw4seC3tJa45Y8ooNw5yjARBwkPJqSieMV",
-    "BTC": "poolHANDAL.001",
-    "ERGO": "9585584bcc0056bce34c5cfdc827e1ecfc69edea3",
-    "CFX": "cfx:ac56b85fb71b8cbd720161715509c1aa2d50e8e027",
-    "RVN": "R776023c985c753d7a5900bd29f857e6c3",
-    "ZEPH": "ZEPH65a6e3a79adaaaf7d1798c894759d82eb00bddb1",
+    "XMR": "46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRi8Vbb49f89433a9e42fd808af153a045f8cb36cd98785c10a819e3ab8c746063bc",
+    "BTC": "antigravity.worker01",
+    "ERGO": "9f8X2mPjZk8B2mPjZk8B2mPjZk8B2mPjZk8B2mPjZk8B2mPjZk",
+    "CFX": "cfx:ac56b8cbd720161715509c1aa2d50e8e02787878",
+    "RVN": "poolHANDAL.001",
+    "ZEPH": "ZEPHYR2uqg6dBfb3KnCa4rcg6yxzGTuu74dSrMfpoEPQJutUa3bzmGEbKqbqPWU54eTitCxohhiN2F6L78XJ6EGjJHtsuCQUthD4i",
     "BNB": "0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38",
     "SOL": "69hDTBTfsGZpHLZoJZhdzmBpziPMGCHaX9Rn2LmJSxuR",
     "ETH": "0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38"
   },
   "passwords": {
-    "BTC": "123456",
+    "RVN": "123456",
     "XMR": "jonatas.lampa@gmail.com"
   },
   "mnemonic_encrypted": {
-    "iv": "44b7631a5d7fcdc0f361d38ddbae9478",
-    "content": "eeb23a998f83a47c1f89e7dc6b444749ece0b52d1f90e79c514edf2558cf4dc3cce44d9a3cfadcafe0793db328da2413076f7a6a424bf946764be2b9e5864943d85c377361b5ce5b21a6a9501334949e83c8e87d34084b35d2c97b1cb8dac9724e3325b46f3313f8449235bde52585bb"
+    "iv": "43a3af1a912deb1a3bd7c49d09f5f252",
+    "content": "645c0fef0cae959b1029bd7b9535daf45120fa0db612ee93c0a5c666014b6b1260a9589632c5f272d5b1a9ef606aae39c3151c4dc91c961167b44e34ce9a2fa27a24b9d9763588a520d6c193bd2db3c554563f0bdafb0564e88e681e636664b81347ab46fe2f0ff9b035d92d639986d0"
   },
-  "sessions": 58,
+  "sessions": 14,
   "energyCostPerKwh": 1.1,
-  "lifetimeMined": 0,
-  "lifetimeCost": 1.8202872976443134,
+  "lifetimeMined": 10.5,
+  "lifetimeCost": 2.0416074932930557,
   "lifetimeXMR": 0,
-  "lastUpdated": "2026-02-09T14:49:00.484Z"
+  "lastUpdated": "2026-02-09T21:00:58.121Z"
 }

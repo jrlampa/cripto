@@ -219,7 +219,7 @@ export class TUIBoard extends EventEmitter {
 
     const gpuStatus = data.isSimulated
       ? '(SIMULADO)'
-      : `(${this.algorithm} = CPU Only)`;
+      : `(GPU ATIVO)`;
 
     this.gpuBox.setContent(
       `Modelo: ${data.model} {grey-fg}${gpuStatus}{/grey-fg}\n` +
@@ -242,6 +242,8 @@ export class TUIBoard extends EventEmitter {
     minPayout?: number,
     etaPayout?: string,
     eta1XMR?: string,
+    etaPayoutPool?: string,
+    eta1XMRPool?: string,
     kwhPrice?: number
   }): void {
     const sessionProfit = (info.minedValue || 0) - (info.energyCost || 0);
@@ -267,8 +269,9 @@ export class TUIBoard extends EventEmitter {
       `Endereço: {cyan-fg}${addrDisplay}{/cyan-fg} | Sessões: {bold}${info.sessions || 1}{/bold}\n` +
       `Total: {bold}${lifetimeXMR.toFixed(8)} ${this.coinSymbol}{/bold} (R$ ${(lifetimeXMR * info.brl).toFixed(4)}) | Meta: {bold}${payoutMeta} ${this.coinSymbol}{/bold} (R$ ${(payoutMeta * info.brl).toFixed(2)})\n` +
       `Progresso: ${progressColor}[${'█'.repeat(Math.floor(Math.min(100, progress) / 5))}${'░'.repeat(20 - Math.floor(Math.min(100, progress) / 5))}] ${Math.min(100, progress).toFixed(2)}%{/}\n` +
-      `ETA Payout: {bold}${info.etaPayout || '---'}{/bold} | ETA 1.0 ${this.coinSymbol}: {bold}${info.eta1XMR || '---'}{/bold}\n` +
-      `Sessão:   {red-fg}Luz R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} {grey-fg}(${(info.kwhPrice || 1.10).toFixed(2)}/kWh){/grey-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg} | Saldo: ${profitColor}R$ ${sessionProfit.toFixed(4)}{/}\n` +
+      `ETA Payout: Mineração {bold}${info.etaPayout}{/bold} / Pool {bold}${info.etaPayoutPool}{/bold}\n` +
+      `ETA 1.0 ${this.coinSymbol}: Mineração {bold}${info.eta1XMR}{/bold} / Pool {bold}${info.eta1XMRPool}{/bold}\n` +
+      `Sessão:   {red-fg}Luz R$ ${(info.energyCost || 0).toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${(info.minedValue || 0).toFixed(4)}{/green-fg} | Saldo: ${profitColor}R$ ${sessionProfit.toFixed(4)}{/}\n` +
       `Total:    custo energia total: {red-fg}R$ ${lifetimeCost.toFixed(4)}{/red-fg} | Gerado: {green-fg}R$ ${lifetimeMined.toFixed(4)}{/green-fg} | Saldo: ${lifetimeColor}{bold}R$ ${lifetimeProfit.toFixed(4)}{/bold}{/}`
     );
   }

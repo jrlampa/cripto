@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { Worker } from 'worker_threads';
 import * as os from 'os';
 import { EventEmitter } from 'events';
@@ -17,7 +18,7 @@ export class MiningEngine extends EventEmitter {
   private manualThreads: number | null = null; // null significa "usar lógica automática"
   private workerHashrates: Map<number, number> = new Map();
 
-  constructor(host: string, port: number, private address: string, private algorithm: string = 'RandomX', private password: string = 'x') {
+  constructor(host: string, port: number, private address: string, private algorithm: string = 'RandomX', private password: string = 'x', private coinSymbol: string = 'XMR') {
     super();
     this.idleDetector = new IdleDetector();
 
@@ -130,11 +131,15 @@ export class MiningEngine extends EventEmitter {
   private spawnWorkers(count: number): void {
     this.stopWorkers();
     console.log(`🔨 Ativando ${count} núcleos para mineração...`);
-    const workerPath = './dist/MinerWorker.js';
+    // const workerPath = './dist/MinerWorker.js'; // Original line, commented out as per instruction's path change
 
     for (let i = 0; i < count; i++) {
-      const worker = new Worker(workerPath, {
-        workerData: { id: i, algorithm: this.algorithm }
+      const worker = new Worker(path.join(__dirname, 'MinerWorker.js'), {
+        workerData: {
+          algorithm: this.algorithm,
+          coin: this.coinSymbol,
+          threads: count
+        }
       });
       worker.on('message', (msg) => {
         if (msg.type === 'submit') {

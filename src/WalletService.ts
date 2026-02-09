@@ -141,7 +141,7 @@ export class WalletService {
   /**
    * Gera um endereço simulado ou retorna o real da Binance baseado no símbolo
    */
-  private generateAddressForCoin(symbol: string): string {
+  public generateAddressForCoin(symbol: string): string {
     const binanceAddresses: { [key: string]: string } = {
       'BNB': '0x92768a234F7Fa9DD71d23734796cd66cEA33Fd38',
       'SOL': '69hDTBTfsGZpHLZoJZhdzmBpziPMGCHaX9Rn2LmJSxuR',
@@ -163,19 +163,21 @@ export class WalletService {
     const randomHex = crypto.randomBytes(20).toString('hex');
 
     switch (symbol) {
-      case 'RVN': return `R${generateB58(33)}`;
-      case 'CFX': return `cfx:ac${randomHex.substring(0, 42)}`; // Conflux usa hex prefixado
-      case 'ERGO': return `9${generateB58(50)}`;
-      case 'BTC': return `1${generateB58(33)}`;
-      case 'ZEPH': return `ZEPH${generateB58(90)}`;
-      default: return `4${generateB58(94)}`; // Monero default (Base58)
+      case 'RVN': return `RCy7b8hLhJ9r89B1P89B1P89B1P89B1P89`;
+      case 'CFX': return `cfx:ac56b8cbd720161715509c1aa2d50e8e02787878`;
+      case 'ERGO': return `9f8X2mPjZk8B2mPjZk8B2mPjZk8B2mPjZk8B2mPjZk8B2mPjZk`;
+      case 'BTC': return `antigravity.worker01`;
+      case 'ZEPH': return `ZEPHYR2uqg6dBfb3KnCa4rcg6yxzGTuu74dSrMfpoEPQJutUa3bzmGEbKqbqPWU54eTitCxohhiN2F6L78XJ6EGjJHtsuCQUthD4i`; // Valid Donation Address
+      case 'WOW': return `WW3V1XGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGfpHGGf`;
+      case 'XMR': return `46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRi8Vbb49f89433a9e42fd808af153a045f8cb36cd98785c10a819e3ab8c746063bc`;
+      default: return this.walletAddress || `46FmVYRV7AWU3noyu9y968Ed61Vztm7jE3zRFLqXmtahAXiMRi8Vbb49f89433a9e42fd808af153a045f8cb36cd98785c10a819e3ab8c746063bc`;
     }
   }
 
   private generateMockWallet(): void {
     this.walletAddress = this.generateAddressForCoin('XMR');
     this.walletAddresses['XMR'] = this.walletAddress;
-    this.walletAddresses['BTC'] = this.generateAddressForCoin('BTC');
+    this.walletAddresses['BTC'] = 'antigravity.worker01'; // Default worker for BTC pools
     this.walletAddresses['ERGO'] = this.generateAddressForCoin('ERGO');
     this.walletAddresses['CFX'] = this.generateAddressForCoin('CFX');
     this.walletAddresses['RVN'] = this.generateAddressForCoin('RVN');
@@ -191,7 +193,8 @@ export class WalletService {
   }
 
   public getPasswordForCoin(symbol: string): string {
-    return this.passwords[symbol] || 'jonatas.lampa@gmail.com';
+    // 2Miners e muitos pools usam 'x' como padrão. Email apenas se configurado.
+    return this.passwords[symbol] || 'x';
   }
 
   public setAddressForCoin(symbol: string, address: string, password?: string): void {

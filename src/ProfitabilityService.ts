@@ -13,10 +13,10 @@ export class ProfitabilityService {
 
   private currentPriceBRL: number = 0;
   private smoothedRate: number = 0;
+  private smoothedRatePool: number = 0;
 
   constructor() {
-    // Inicia com XMR por padrão, mas bootstrap chamará fetch conforme necessário
-    this.fetchNetworkStats('XMR');
+    // Inicialização passiva. fetchNetworkStats será chamado sob demanda ou pelo bootstrap se necessário.
   }
 
   /**
@@ -39,7 +39,12 @@ export class ProfitabilityService {
           this.updateStatsMap(coin, diffResp.data, rewardResp.data / 100000000, 0.005); // Binance Pool approx min
         }
       } else if (coin === 'ZEPH') {
-        this.updateStatsMap(coin, 20000000000, 4.41, 2.0); // ZEPH approx min
+        const resp = await axios.get(`https://zephyr.herominers.com/api/stats`);
+        if (resp.data && resp.data.network) {
+          this.updateStatsMap(coin, resp.data.network.difficulty, resp.data.network.reward / 1000000000000, 2.0);
+        } else {
+          this.updateStatsMap(coin, 20000000000, 4.41, 2.0); // ZEPH approx min
+        }
       }
     } catch (e) {
       console.error(`⚠️ Falha ao buscar estatísticas para ${coin}. Usando fallback.`);
@@ -61,7 +66,7 @@ export class ProfitabilityService {
   /**
    * Atualiza as métricas financeiras
    */
-  public update(cpuLoad: number, gpuLoad: number, totalHashrate: number, coinPriceBRL: number, deltaMs: number, kwhPrice: number = 1.10, coin: string = 'XMR', poolDifficulty?: number): void {
+  public update(cpuLoad: number, gpuLoad: number, totalHashrate: number, coinPriceBRL: number, deltaMs: number, kwhPrice: number = 1.10, coin: string = 'XMR', poolDifficulty?: number, poolHashrate: number = 0): void {
     this.currentPriceBRL = coinPriceBRL;
     this.currentCoin = coin;
 
@@ -74,36 +79,34 @@ export class ProfitabilityService {
     this.accumulatedCostBRL += cost;
 
     // Cálculo teórico de ganho por segundo (PPS Teórico)
-    // Rate = (Hashrate / Dificuldade) * Recompensa do Bloco
+    // Rate = (Hashrate / Dificuldade_da_Rede) * Recompensa_do_Bloco
     let stats = this.statsMap.get(coin);
 
-    // Fallback robustness: Create stats entry if missing, using pool difficulty if available
+    // Fallback robustness: Create stats entry if missing, using REALISTIC Network Difficulty fallbacks
+    // Share Difficulty (poolDifficulty) != Network Difficulty.
     if (!stats || stats.difficulty === 0) {
-      if (poolDifficulty && poolDifficulty > 0) {
-        // Default rewards fallback
-        let defaultReward = 0.6; // XMR approx
-        if (coin === 'BTC') defaultReward = 3.125 + 0.1; // Block subsidy + fees (approx)
-        else if (coin === 'RVN') defaultReward = 2500;
-        else if (coin === 'ERGO') defaultReward = 27; // Approx
-        else if (coin === 'CFX') defaultReward = 2; // Approx
+      let hardcodedDiff = 300000000000; // Monero ~300G
+      let defaultReward = 0.6;
 
-        // Create or update stats with real pool difficulty
-        this.updateStatsMap(coin, poolDifficulty, defaultReward, 0.1); // minPayout default 0.1
-        stats = this.statsMap.get(coin);
-        console.log(`⚠️ Usando dificuldade do Pool para estimativa (${poolDifficulty})`);
-      }
+      if (coin === 'BTC') { hardcodedDiff = 85000000000000; defaultReward = 3.125; }
+      else if (coin === 'ZEPH') { hardcodedDiff = 20000000000; defaultReward = 4.41; }
+      else if (coin === 'RVN') { hardcodedDiff = 100000; defaultReward = 2500; }
+      else if (coin === 'ERGO') { hardcodedDiff = 2000000000000; defaultReward = 27; }
+
+      this.updateStatsMap(coin, hardcodedDiff, defaultReward, coin === 'XMR' ? 0.1 : 1.0);
+      stats = this.statsMap.get(coin);
     }
 
     if (stats && stats.difficulty > 0) {
-      // Use explicit pool difficulty if API is way off (e.g., testnet/mock) or just prefer real-time share diff
-      const calculationDiff = (poolDifficulty && poolDifficulty > 0) ? poolDifficulty : stats.difficulty;
+      // 1. Taxa baseada no Hashrate Local (Capacidade de Mineração)
+      const theoreticalRateLocal = (totalHashrate / stats.difficulty) * stats.reward;
+      if (this.smoothedRate === 0) this.smoothedRate = theoreticalRateLocal;
+      else this.smoothedRate = (this.smoothedRate * 0.95) + (theoreticalRateLocal * 0.05);
 
-      const theoreticalRatePerSec = (totalHashrate / calculationDiff) * stats.reward;
-
-      // Suavização (Exponential Moving Average) para evitar ETA pulando muito
-      // Faster convergence if zero
-      if (this.smoothedRate === 0) this.smoothedRate = theoreticalRatePerSec;
-      else this.smoothedRate = (this.smoothedRate * 0.95) + (theoreticalRatePerSec * 0.05);
+      // 2. Taxa baseada no Hashrate Reportado pela Pool (Performance na Pool)
+      const theoreticalRatePool = (poolHashrate / stats.difficulty) * stats.reward;
+      if (this.smoothedRatePool === 0) this.smoothedRatePool = theoreticalRatePool;
+      else this.smoothedRatePool = (this.smoothedRatePool * 0.95) + (theoreticalRatePool * 0.05);
 
       // Atualiza estatísticas da rede a cada 10 minutos
       if (Date.now() - stats.lastUpdate > 600000) {
@@ -128,14 +131,14 @@ export class ProfitabilityService {
     this.accumulatedCoin += netShareValue;
   }
 
-  private calculateETA(target: number, current: number): string {
-    if (this.smoothedRate <= 0) return "calculando...";
+  private calculateETA(target: number, current: number, rate: number): string {
+    if (rate <= 0) return "calculando...";
 
     const remaining = target - current;
     if (remaining <= 0) return "disponível";
 
     // Rate está em moedas por SEGUNDO. msRemaining = (moedas_faltantes / moedas_por_segundo) * 1000
-    const secondsRemaining = remaining / this.smoothedRate;
+    const secondsRemaining = remaining / rate;
     const totalSeconds = Math.floor(secondsRemaining);
 
     if (totalSeconds < 0) return "calculando...";
@@ -161,8 +164,12 @@ export class ProfitabilityService {
       profit: revenue - this.accumulatedCostBRL,
       xmr: this.accumulatedCoin, // Mantemos o nome da key por compatibilidade com a interface do TUI por enquanto
       coinAmount: this.accumulatedCoin,
-      etaPayout: this.calculateETA(minPayout, lifetimeCoin),
-      eta1Unit: this.calculateETA(1.0, lifetimeCoin),
+      // ETAs baseados no hashrate local (Realista/Rede)
+      etaPayout: this.calculateETA(minPayout, lifetimeCoin, this.smoothedRate),
+      eta1Unit: this.calculateETA(1.0, lifetimeCoin, this.smoothedRate),
+      // ETAs baseados no hashrate da pool (Comparação)
+      etaPayoutPool: this.calculateETA(minPayout, lifetimeCoin, this.smoothedRatePool),
+      eta1UnitPool: this.calculateETA(1.0, lifetimeCoin, this.smoothedRatePool),
       minPayout: minPayout
     };
   }

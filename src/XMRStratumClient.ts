@@ -105,12 +105,13 @@ export class XMRStratumClient extends EventEmitter {
   }
 
   public login(address: string, password: string = 'x'): void {
-    console.log(`🔑 Autenticando com Worker/Email: ${password}`);
+    const loginId = (password && password !== 'x' && !password.includes('@')) ? `${address}.${password}` : address;
+    console.log(`🔑 Login no Pool: ${loginId.substring(0, 15)}...`);
     const request = {
       id: this.id++,
       method: 'login',
       params: {
-        login: address,
+        login: loginId,
         pass: password,
         agent: 'antigravity-xmr-miner/1.0'
       }

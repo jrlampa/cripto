@@ -82,7 +82,7 @@ export class BTCStratumClient extends EventEmitter {
       // result example: [ [ ["mining.set_difficulty", "subscription id 1"], ["mining.notify", "subscription id 2"] ], "extraNonce1", extraNonce2_size ]
       if (Array.isArray(json.result)) {
         this.extraNonce1 = json.result[1];
-        this.extraNonce2Size = json.result[2];
+        this.extraNonce2Size = json.result[2] || 4; // Fallback to 4 if undefined
         console.log(`✅ Subscribed! ExtraNonce1: ${this.extraNonce1}, EN2Size: ${this.extraNonce2Size}`);
         this.emit('subscribed', { extraNonce1: this.extraNonce1, extraNonce2Size: this.extraNonce2Size });
       }

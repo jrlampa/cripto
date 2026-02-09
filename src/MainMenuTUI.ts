@@ -70,6 +70,19 @@ export const COINS: CoinConfig[] = [
     ]
   },
   {
+    symbol: 'ZEPH',
+    name: 'Zephyr Protocol',
+    algorithm: 'RandomX',
+    poolHost: 'zephyr.herominers.com',
+    poolPort: 1123,
+    color: 'green',
+    presets: [
+      { name: 'HeroMiners (Default)', host: 'zephyr.herominers.com', port: 1123 },
+      { name: '2Miners', host: 'zeph.2miners.com', port: 7777 },
+      { name: 'Custom / Outro', host: '', port: 0 }
+    ]
+  },
+  {
     symbol: 'RVN',
     name: 'Ravencoin',
     algorithm: 'KAWPOW',
@@ -77,8 +90,13 @@ export const COINS: CoinConfig[] = [
     poolPort: 10400,
     color: 'red',
     presets: [
+      { name: '⚡ Auto-Select Best (Latency Test)', host: 'AUTO_LATENCY', port: 0 },
       { name: 'Nanopool (Default)', host: 'rvn-eu1.nanopool.org', port: 10400 },
-      { name: '2Miners', host: 'rvn.2miners.com', port: 6060 },
+      { name: 'Binance Pool (Port 1800)', host: 'rvn.poolbinance.com', port: 1800 },
+      { name: 'Binance Pool (Port 9000)', host: 'rvn.poolbinance.com', port: 9000 },
+      { name: 'Binance Pool (Port 9100)', host: 'rvn.poolbinance.com', port: 9100 },
+      { name: 'Binance Pool (Port 9200)', host: 'rvn.poolbinance.com', port: 9200 },
+      { name: 'Nanopool EU', host: 'rvn-eu1.nanopool.org', port: 10400 },
       { name: 'Custom / Outro', host: '', port: 0 }
     ]
   },
@@ -86,7 +104,7 @@ export const COINS: CoinConfig[] = [
     symbol: 'WOW',
     name: 'Wownero',
     algorithm: 'RandomX',
-    poolHost: 'de.wownero.herominers.com',
+    poolHost: 'wownero.herominers.com',
     poolPort: 1166,
     color: 'magenta'
   },
@@ -94,7 +112,7 @@ export const COINS: CoinConfig[] = [
     symbol: 'EPIC',
     name: 'Epic Cash',
     algorithm: 'RandomX',
-    poolHost: 'de.epic.herominers.com',
+    poolHost: 'epic.herominers.com',
     poolPort: 1111,
     color: 'white'
   },
@@ -138,7 +156,7 @@ export const COINS: CoinConfig[] = [
     symbol: 'XLA',
     name: 'Scala',
     algorithm: 'RandomX', // DefiX (RandomX variant)
-    poolHost: 'de.scala.herominers.com',
+    poolHost: 'scala.herominers.com',
     poolPort: 1190,
     color: 'blue'
   }
@@ -304,16 +322,31 @@ export class MainMenuTUI {
 
     this.screen.render();
 
-    // Hosts do Nanopool para teste (lista requerida pelo usuário)
-    const candidates = [
-      { name: 'Europe 1', host: 'xmr-eu1.nanopool.org', port: 14444 },
-      { name: 'Europe 2', host: 'xmr-eu2.nanopool.org', port: 14444 },
-      { name: 'US East', host: 'xmr-us-east1.nanopool.org', port: 14444 },
-      { name: 'US West', host: 'xmr-us-west1.nanopool.org', port: 14444 },
-      { name: 'Asia', host: 'xmr-asia1.nanopool.org', port: 14444 },
-      { name: 'Japan', host: 'xmr-jp1.nanopool.org', port: 14444 },
-      { name: 'Australia', host: 'xmr-au1.nanopool.org', port: 14444 }
-    ];
+    // Hosts para teste (lista requerida pelo usuário)
+    let candidates: any[] = [];
+
+    if (coin.symbol === 'RVN') {
+      candidates = [
+        { name: 'Binance (1800)', host: 'rvn.poolbinance.com', port: 1800 },
+        { name: 'Binance (9000)', host: 'rvn.poolbinance.com', port: 9000 },
+        { name: 'Binance (9100)', host: 'rvn.poolbinance.com', port: 9100 },
+        { name: 'Binance (9200)', host: 'rvn.poolbinance.com', port: 9200 },
+        { name: 'Nanopool EU', host: 'rvn-eu1.nanopool.org', port: 10400 },
+        { name: 'Nanopool US', host: 'rvn-us-east1.nanopool.org', port: 10400 },
+        { name: '2Miners', host: 'rvn.2miners.com', port: 6060 }
+      ];
+    } else {
+      // Default XMR
+      candidates = [
+        { name: 'Europe 1', host: 'xmr-eu1.nanopool.org', port: 14444 },
+        { name: 'Europe 2', host: 'xmr-eu2.nanopool.org', port: 14444 },
+        { name: 'US East', host: 'xmr-us-east1.nanopool.org', port: 14444 },
+        { name: 'US West', host: 'xmr-us-west1.nanopool.org', port: 14444 },
+        { name: 'Asia', host: 'xmr-asia1.nanopool.org', port: 14444 },
+        { name: 'Japan', host: 'xmr-jp1.nanopool.org', port: 14444 },
+        { name: 'Australia', host: 'xmr-au1.nanopool.org', port: 14444 }
+      ];
+    }
 
     let resultsText = '{center}{bold}Testando Latência...{/bold}\n\n';
 
